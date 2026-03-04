@@ -10,7 +10,7 @@ const equipoRoutes = require('../Routes/equiposRoutes');
 const canchaRoutes = require('../Routes/canchaRoutes');       
 const canalRoutes = require('../Routes/canalRoutes');         
 const jugadoresRoutes = require('../Routes/jugadoresRoutes'); 
-const arbitroRoutes = require('../Routes/arbitroRoutes');     
+const arbitroRoutes = require('../Routes/arbitrosRoutes');     
 const partidosRoutes = require('../Routes/partidosRoutes');
 // Middleware
 app.use(cors({

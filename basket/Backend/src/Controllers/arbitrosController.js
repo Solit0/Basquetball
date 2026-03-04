@@ -19,7 +19,15 @@ const getPartidos = async (req, res, next) => {
         next(error);
     }
 };
-
+const getAllPartidos = async (req, res, next) => {
+    try {
+        const { id_arbitro } = req.params;
+        const partidos = await arbitrosService.obtenerTodosPartidosAsignados(id_arbitro);
+        res.status(200).json(partidos);
+    } catch (error) {
+        next(error);
+    }
+};
 const getDetallePartido = async (req, res, next) => {
     try {
         const { id_arbitro, id_partido } = req.params;
@@ -32,9 +40,43 @@ const getDetallePartido = async (req, res, next) => {
         next(error);
     }
 };
+const setAsistencia = async (req, res, next) => {
+    try {
+        const { id_partido, id_jugador } = req.params;
+        const { estado } = req.body; 
+        
+        const resultado = await arbitrosService.marcarAsistenciaJugador(id_partido, id_jugador, estado);
+        res.status(200).json({ mensaje: 'Asistencia actualizada', data: resultado });
+    } catch (error) {
+        next(error);
+    }
+};
 
+const getAlineacion = async (req, res, next) => {
+    try {
+        const { id_partido, id_equipo } = req.params;
+        const alineacion = await arbitrosService.obtenerAlineacionPartido(id_partido, id_equipo);
+        res.status(200).json(alineacion);
+    } catch (error) {
+        next(error);
+    }
+};
+const iniciarPartido = async (req, res, next) => {
+    try {
+        const { id_partido } = req.params;
+        
+        const resultado = await arbitrosService.actualizarEstadoPartido(id_partido, 'En Juego'); 
+        res.status(200).json({ mensaje: 'Partido iniciado con éxito', data: resultado });
+    } catch (error) {
+        next(error);
+    }
+};
 module.exports = {
     getTorneos,
     getPartidos,
-    getDetallePartido
+    getDetallePartido,
+    getAllPartidos,
+    setAsistencia,
+    getAlineacion,
+    iniciarPartido
 };

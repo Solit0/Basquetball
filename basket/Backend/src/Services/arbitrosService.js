@@ -56,8 +56,74 @@ const obtenerDetallePartido = async (id_arbitro, id_partido) => {
     return rows[0]; 
 };
 
+const obtenerTodosPartidosAsignados = async (id_arbitro) => {
+    const query = `
+        SELECT p.id_partido, p.fecha, p.hora, p.ronda_torneo, p.estado,
+               t.nombre_torneo,
+               el.nombre_oficial AS local_nombre, 
+               ev.nombre_oficial AS visitante_nombre, 
+               c.nombre_cancha
+        FROM partidos p
+        JOIN torneos t ON p.id_torneo = t.id_torneo
+        JOIN equipos el ON p.id_equipo_local = el.id_equipo
+        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+        JOIN canchas c ON p.id_cancha = c.id_cancha
+        WHERE p.id_arbitro_principal = $1 
+          AND p.estado != 'Finalizado'
+        ORDER BY p.fecha ASC, p.hora ASC;
+    `;
+    const { rows } = await pool.query(query, [id_arbitro]);
+    return rows;
+};
+
+// ==========================================
+// NUEVAS FUNCIONES PARA LA ASISTENCIA
+// ==========================================
+
+// 1. Marcar a un jugador en específico
+const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
+    // Usamos ON CONFLICT para insertar si no existe, o actualizar si el árbitro cambia de opinión
+    const query = `
+        INSERT INTO asistencia_partidos (id_partido, id_jugador, estado)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (id_partido, id_jugador) 
+        DO UPDATE SET estado = EXCLUDED.estado
+        RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [id_partido, id_jugador, estado]);
+    return rows[0];
+};
+
+const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
+    const query = `
+        SELECT j.id_jugador, j.nombre, j.apellido, 
+               pe.numero_camiseta, pe.es_capitan,
+               COALESCE(ap.estado, 'Pendiente') as estado_asistencia 
+        FROM jugadores j
+        JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador
+        LEFT JOIN asistencia_partidos ap ON j.id_jugador = ap.id_jugador AND ap.id_partido = $1
+        WHERE pe.id_equipo = $2 AND pe.activo = true
+        ORDER BY pe.numero_camiseta ASC;
+    `;
+    const { rows } = await pool.query(query, [id_partido, id_equipo]);
+    return rows;
+};
+const actualizarEstadoPartido = async (id_partido, estado) => {
+    const query = `
+        UPDATE partidos 
+        SET estado = $2 
+        WHERE id_partido = $1 
+        RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [id_partido, estado]);
+    return rows[0];
+};
 module.exports = {
     obtenerTorneosAsignados,
     obtenerPartidosPorTorneo,
-    obtenerDetallePartido
+    obtenerDetallePartido,
+    obtenerTodosPartidosAsignados,
+    marcarAsistenciaJugador,
+    obtenerAlineacionPartido,
+    actualizarEstadoPartido
 };
