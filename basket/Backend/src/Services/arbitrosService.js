@@ -75,14 +75,8 @@ const obtenerTodosPartidosAsignados = async (id_arbitro) => {
     const { rows } = await pool.query(query, [id_arbitro]);
     return rows;
 };
-
-// ==========================================
-// NUEVAS FUNCIONES PARA LA ASISTENCIA
-// ==========================================
-
-// 1. Marcar a un jugador en específico
 const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
-    // Usamos ON CONFLICT para insertar si no existe, o actualizar si el árbitro cambia de opinión
+    
     const query = `
         INSERT INTO asistencia_partidos (id_partido, id_jugador, estado)
         VALUES ($1, $2, $3)
@@ -97,8 +91,8 @@ const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
 const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
     const query = `
         SELECT j.id_jugador, j.nombre, j.apellido, 
-               pe.numero_camiseta, pe.es_capitan,
-               COALESCE(ap.estado, 'Pendiente') as estado_asistencia 
+                pe.numero_camiseta, pe.es_capitan,
+                COALESCE(ap.estado, 'Pendiente') as estado_asistencia 
         FROM jugadores j
         JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador
         LEFT JOIN asistencia_partidos ap ON j.id_jugador = ap.id_jugador AND ap.id_partido = $1
@@ -118,6 +112,98 @@ const actualizarEstadoPartido = async (id_partido, estado) => {
     const { rows } = await pool.query(query, [id_partido, estado]);
     return rows[0];
 };
+const obtenerTorneosHistorial = async (id_arbitro) => {
+    const query = `
+        SELECT DISTINCT t.id_torneo, t.nombre_torneo, t.categoria, c.descripcion AS clasificacion,
+                COUNT(p.id_partido) OVER(PARTITION BY t.id_torneo) as partidos_dirigidos
+        FROM torneos t
+        JOIN partidos p ON t.id_torneo = p.id_torneo
+        LEFT JOIN clasificacion_equipo c ON t.id_clasificacion = c.id_clasificacion
+        WHERE p.id_arbitro_principal = $1 AND p.estado = 'Finalizado'
+        ORDER BY t.nombre_torneo;
+    `;
+    const { rows } = await pool.query(query, [id_arbitro]);
+    return rows;
+};
+
+const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
+    const query = `
+        SELECT p.id_partido, p.fecha, p.hora, p.ronda_torneo, p.estado,
+                el.nombre_oficial AS local_nombre, el.siglas AS local_siglas,
+                ev.nombre_oficial AS visitante_nombre, ev.siglas AS visitante_siglas,
+                c.nombre_cancha, p.marcador_local, p.marcador_visitante
+        FROM partidos p
+        JOIN equipos el ON p.id_equipo_local = el.id_equipo
+        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+        JOIN canchas c ON p.id_cancha = c.id_cancha
+        WHERE p.id_arbitro_principal = $1 AND p.id_torneo = $2 AND p.estado = 'Finalizado'
+        ORDER BY p.fecha DESC, p.hora DESC;
+    `;
+    const { rows } = await pool.query(query, [id_arbitro, id_torneo]);
+    return rows;
+};
+const obtenerResumenFinalizado = async (id_partido) => {
+    const queryInforme = `SELECT contenido FROM informes_partido WHERE id_partido = $1`;
+    const { rows: informeRows } = await pool.query(queryInforme, [id_partido]);
+    const querySanciones = `
+        SELECT s.tipo_sancion, s.motivo, j.nombre, j.apellido, e.nombre_oficial AS equipo
+        FROM sanciones s
+        JOIN jugadores j ON s.id_jugador = j.id_jugador
+        JOIN alineaciones a ON s.id_jugador = a.id_jugador AND a.id_partido = s.id_partido
+        JOIN equipos e ON a.id_equipo = e.id_equipo
+        WHERE s.id_partido = $1
+    `;
+    const { rows: sancionesRows } = await pool.query(querySanciones, [id_partido]);
+
+    return {
+        informe: informeRows.length > 0 ? informeRows[0].contenido : null,
+        sanciones: sancionesRows
+    };
+};
+
+const obtenerEvaluaciones = async (id_arbitro) => {
+    const query = `
+        SELECT ea.id_evaluacion, ea.puntuacion, ea.comentarios, ea.fecha_evaluacion,
+                ea.respuesta_arbitro, ea.fecha_respuesta,
+                u.nombre AS evaluador_nombre, u.apellido AS evaluador_apellido,
+                p.fecha, p.hora, el.nombre_oficial AS local_nombre, ev.nombre_oficial AS visitante_nombre,
+                t.nombre_torneo 
+        FROM evaluaciones_arbitro ea
+        JOIN usuarios u ON ea.id_evaluador = u.id_usuario
+        JOIN informes_partido i ON ea.id_informe = i.id_informe
+        JOIN partidos p ON i.id_partido = p.id_partido
+        JOIN torneos t ON p.id_torneo = t.id_torneo -- AQUÍ CRUZAMOS LA TABLA TORNEOS
+        JOIN equipos el ON p.id_equipo_local = el.id_equipo
+        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+        WHERE ea.id_arbitro = $1
+        ORDER BY ea.fecha_evaluacion DESC;
+    `;
+    const { rows } = await pool.query(query, [id_arbitro]);
+    return rows;
+};
+
+const responderEvaluacion = async (id_evaluacion, respuesta) => {
+    const query = `
+        UPDATE evaluaciones_arbitro
+        SET respuesta_arbitro = $1, fecha_respuesta = CURRENT_TIMESTAMP
+        WHERE id_evaluacion = $2
+        RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [respuesta, id_evaluacion]);
+    return rows[0];
+};
+
+const obtenerPromedioArbitro = async (id_arbitro) => {
+    const query = `
+        SELECT COALESCE(ROUND(AVG(puntuacion), 1), 0) as promedio, 
+               COUNT(id_evaluacion) as total_evaluaciones
+        FROM evaluaciones_arbitro
+        WHERE id_arbitro = $1;
+    `;
+    const { rows } = await pool.query(query, [id_arbitro]);
+    return rows[0];
+};
+
 module.exports = {
     obtenerTorneosAsignados,
     obtenerPartidosPorTorneo,
@@ -125,5 +211,11 @@ module.exports = {
     obtenerTodosPartidosAsignados,
     marcarAsistenciaJugador,
     obtenerAlineacionPartido,
-    actualizarEstadoPartido
+    actualizarEstadoPartido,
+    obtenerTorneosHistorial,
+    obtenerPartidosHistorial,
+    obtenerResumenFinalizado,
+    obtenerEvaluaciones,
+    responderEvaluacion,
+    obtenerPromedioArbitro
 };

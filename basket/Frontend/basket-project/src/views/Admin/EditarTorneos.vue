@@ -106,12 +106,26 @@
                         <textarea v-model="form.descripcion" rows="2" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 outline-none focus:ring-2 focus:ring-amber-500 disabled:text-gray-500 disabled:cursor-not-allowed"></textarea>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-black text-gray-500 uppercase">Reglamento</label>
-                        <textarea v-model="form.reglamento" rows="5" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-amber-500 disabled:text-gray-500 disabled:cursor-not-allowed"></textarea>
+                    <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-4">
+                        <h4 class="text-sm font-black text-indigo-900 border-b border-indigo-200 pb-2">Estructura del Reglamento Oficial</h4>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Reglamento General</label>
+                            <textarea v-model="formReglamentos.general" rows="3" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="w-full px-4 py-2 border border-gray-300 rounded-md bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed focus:ring-2 focus:ring-amber-500 outline-none text-sm"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Sanciones Disciplinarias</label>
+                            <textarea v-model="formReglamentos.sanciones" rows="2" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="w-full px-4 py-2 border border-gray-300 rounded-md bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed focus:ring-2 focus:ring-amber-500 outline-none text-sm"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Normativas Específicas</label>
+                            <textarea v-model="formReglamentos.normativas" rows="2" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="w-full px-4 py-2 border border-gray-300 rounded-md bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed focus:ring-2 focus:ring-amber-500 outline-none text-sm"></textarea>
+                        </div>
                     </div>
 
-                    <div class="flex justify-between pt-4 border-t border-gray-200 mt-4">
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-200 mt-4">
                         <button type="button" @click="handleEliminarTorneo" :disabled="procesando"
                                 class="px-4 py-2 rounded-md font-bold transition flex items-center text-sm text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-50"
                                 title="Archivar o Eliminar Torneo">
@@ -127,7 +141,7 @@
                 </form>
             </div>
 
-            <div class="bg-amber-50 rounded-lg shadow-sm border border-amber-200 p-6 h-fit max-h-212.5 overflow-y-auto">
+            <div class="bg-amber-50 rounded-lg shadow-sm border border-amber-200 p-6 h-fit max-h-[850px] overflow-y-auto">
                 <div class="flex justify-between items-center border-b border-amber-200 pb-3 mb-4">
                     <h3 class="text-xl font-bold text-amber-900">Equipos Inscritos</h3>
                     <span class="px-3 py-1 bg-white text-amber-800 rounded-full text-sm font-black shadow-sm border border-amber-100">
@@ -166,7 +180,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { obtenerTorneosActivosService, editarTorneoService, obtenerEquiposInscritosService, 
-    quitarEquipoTorneoService, eliminarTorneoService } from '../../services/torneosService' // <-- Revisa la ruta aquí también
+    quitarEquipoTorneoService, eliminarTorneoService } from '../../services/torneosService' 
 
 const viewMode = ref('lista')
 const procesando = ref(false)
@@ -174,11 +188,44 @@ const torneos = ref([])
 const torneoSeleccionado = ref(null)
 const equiposInscritos = ref([])
 
+// VARIABLES PARA REGLAMENTO DIVIDIDO
+const formReglamentos = ref({
+    general: '',
+    sanciones: '',
+    normativas: ''
+})
+
 const form = ref({
     nombre_torneo: '', descripcion: '', categoria: '',
     fecha_inicio: '', fecha_fin: '', numero_equipos: 8,
     id_clasificacion: '', reglamento: ''
 })
+
+// FUNCIÓN PARA SEPARAR EL TEXTO DE LA BASE DE DATOS EN CAJITAS
+const separarReglamentos = (textoCompleto) => {
+    formReglamentos.value = { general: '', sanciones: '', normativas: '' };
+    if (!textoCompleto) return;
+
+    if (!textoCompleto.includes('REGLAMENTO GENERAL:\n')) {
+        // Si el torneo es viejo y no tiene este formato, metemos todo en General
+        formReglamentos.value.general = textoCompleto;
+        return;
+    }
+
+    const partesSanciones = textoCompleto.split('\n\nSANCIONES DISCIPLINARIAS:\n');
+    formReglamentos.value.general = partesSanciones[0].replace('REGLAMENTO GENERAL:\n', '').trim();
+    
+    if (partesSanciones.length > 1) {
+        const partesNormativas = partesSanciones[1].split('\n\nNORMATIVAS ESPECIFICAS:\n');
+        formReglamentos.value.sanciones = partesNormativas[0].trim();
+        formReglamentos.value.normativas = (partesNormativas[1] || '').trim();
+    }
+}
+
+// FUNCIÓN PARA UNIR LAS CAJITAS ANTES DE ENVIAR A LA BASE DE DATOS
+const concatenarReglamentos = () => {
+    return `REGLAMENTO GENERAL:\n${formReglamentos.value.general}\n\nSANCIONES DISCIPLINARIAS:\n${formReglamentos.value.sanciones}\n\nNORMATIVAS ESPECIFICAS:\n${formReglamentos.value.normativas}`;
+}
 
 const cargarTorneos = async () => {
     try {
@@ -189,13 +236,16 @@ const cargarTorneos = async () => {
 }
 
 const seleccionarTorneo = async (torneo) => {
-    
     torneoSeleccionado.value = torneo
     form.value = {
         ...torneo,
         fecha_inicio: torneo.fecha_inicio ? torneo.fecha_inicio.split('T')[0] : '',
         fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : ''
     }
+    
+    // Separamos el reglamento mágico aquí:
+    separarReglamentos(torneo.reglamento);
+
     viewMode.value = 'gestionar'
     await cargarEquiposInscritos(torneo.id_torneo)
 }
@@ -212,6 +262,10 @@ const handleActualizarTorneo = async () => {
     if (new Date(form.value.fecha_inicio) > new Date(form.value.fecha_fin)) {
         return alert('Error: La fecha de inicio no puede ser posterior a la fecha de fin.')
     }
+
+    // Unimos los reglamentos antes de mandar el form
+    form.value.reglamento = concatenarReglamentos();
+
     procesando.value = true
     try {
         await editarTorneoService(torneoSeleccionado.value.id_torneo, form.value)
@@ -261,6 +315,10 @@ const volverListado = () => {
     viewMode.value = 'lista'
     torneoSeleccionado.value = null
     equiposInscritos.value = []
+    
+    // Limpiamos formularios
+    formReglamentos.value = { general: '', sanciones: '', normativas: '' };
+    
     cargarTorneos()
 }
 

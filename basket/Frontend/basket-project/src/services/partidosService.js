@@ -1,6 +1,15 @@
 //ruta: /Frontend/basket-project/src/services/partidosService.js
 import { api } from '../Enviroments/enviroment'
 
+export const obtenerPartidosPublicosService = async () => {
+    const response = await api.get('/partidos/publicos');
+    return response.data;
+};
+
+export const obtenerFichaTecnicaPublicaService = async (idPartido) => {
+    const response = await api.get(`/partidos/publicos/${idPartido}/ficha`);
+    return response.data;
+};
 export const guardarPartidosMultiples = async (partidos) => {
     const response = await api.post('/partidos/bulk', { partidos })
     return response.data

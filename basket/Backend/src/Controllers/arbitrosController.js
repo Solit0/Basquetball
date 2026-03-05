@@ -71,6 +71,48 @@ const iniciarPartido = async (req, res, next) => {
         next(error);
     }
 };
+const getTorneosHistorial = async (req, res, next) => {
+    try {
+        const torneos = await arbitrosService.obtenerTorneosHistorial(req.params.id_arbitro);
+        res.status(200).json(torneos);
+    } catch (error) { next(error); }
+};
+
+const getPartidosHistorial = async (req, res, next) => {
+    try {
+        const { id_arbitro, id_torneo } = req.params;
+        const partidos = await arbitrosService.obtenerPartidosHistorial(id_arbitro, id_torneo);
+        res.status(200).json(partidos);
+    } catch (error) { next(error); }
+};
+
+const getResumenPartido = async (req, res, next) => {
+    try {
+        const resumen = await arbitrosService.obtenerResumenFinalizado(req.params.id_partido);
+        res.status(200).json(resumen);
+    } catch (error) { next(error); }
+};
+const getEvaluaciones = async (req, res, next) => {
+    try {
+        const evaluaciones = await arbitrosService.obtenerEvaluaciones(req.params.id_arbitro);
+        res.status(200).json(evaluaciones);
+    } catch (error) { next(error); }
+};
+
+const postRespuestaEvaluacion = async (req, res, next) => {
+    try {
+        const { respuesta } = req.body;
+        const evaluacion = await arbitrosService.responderEvaluacion(req.params.id_evaluacion, respuesta);
+        res.status(200).json(evaluacion);
+    } catch (error) { next(error); }
+};
+
+const getPromedio = async (req, res, next) => {
+    try {
+        const stats = await arbitrosService.obtenerPromedioArbitro(req.params.id_arbitro);
+        res.status(200).json(stats);
+    } catch (error) { next(error); }
+};
 module.exports = {
     getTorneos,
     getPartidos,
@@ -78,5 +120,11 @@ module.exports = {
     getAllPartidos,
     setAsistencia,
     getAlineacion,
-    iniciarPartido
+    iniciarPartido,
+    getTorneosHistorial,
+    getPartidosHistorial,
+    getResumenPartido,
+    getEvaluaciones,
+    postRespuestaEvaluacion,
+    getPromedio
 };

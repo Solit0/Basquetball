@@ -285,7 +285,7 @@ const guardarResultado = async () => {
         };
 
         await finalizarPartidoService(props.partido.id_partido, payload);
-        alert('🏀 ¡Resultado guardado con éxito! El equipo perdedor ha sido eliminado.');
+        alert('¡Resultado guardado con éxito! El equipo perdedor ha sido eliminado.');
         emit('close');
 
     } catch (error) {

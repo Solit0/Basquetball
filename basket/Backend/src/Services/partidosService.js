@@ -177,6 +177,7 @@ const obtenerHistorialEquipo = async (id_entrenador) => {
     const query = `
         SELECT 
             p.id_partido, 
+            t.nombre_torneo, 
             el.nombre_oficial AS local_nombre, 
             ev.nombre_oficial AS visitante_nombre, 
             p.id_equipo_local,
@@ -187,12 +188,26 @@ const obtenerHistorialEquipo = async (id_entrenador) => {
             p.hora, 
             p.id_arbitro_principal,
             i.id_informe, 
-            i.contenido AS informe_contenido, -- Renombramos 'contenido' para el frontend
+            i.contenido AS informe_contenido, 
             ea.id_evaluacion, 
             ea.puntuacion, 
             ea.comentarios, 
-            ea.respuesta_arbitro
+            ea.respuesta_arbitro,
+            (
+                SELECT COALESCE(json_agg(json_build_object(
+                    'tipo_sancion', s.tipo_sancion,
+                    'motivo', s.motivo,
+                    'nombre_jugador', j.nombre,
+                    'apellido_jugador', j.apellido,
+                    'id_equipo', pe.id_equipo
+                )), '[]'::json)
+                FROM sanciones s
+                JOIN jugadores j ON s.id_jugador = j.id_jugador
+                JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador AND pe.activo = true
+                WHERE s.id_partido = p.id_partido
+            ) AS sanciones_partido
         FROM partidos p
+        JOIN torneos t ON p.id_torneo = t.id_torneo
         JOIN equipos el ON p.id_equipo_local = el.id_equipo
         JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
         LEFT JOIN informes_partido i ON p.id_partido = i.id_partido
@@ -220,4 +235,76 @@ const guardarEvaluacion = async (datosEval) => {
     ]);
     return rows[0];
 };
-module.exports = { crearMultiples, obtenerPorTorneo, finalizarPartido, obtenerResumenPartido, obtenerHistorialEquipo, guardarEvaluacion };
+const obtenerPartidosPublicos = async () => {
+    const query = `
+        SELECT 
+            p.id_partido, p.fecha, p.hora, p.estado, p.ronda_torneo, 
+            p.marcador_local, p.marcador_visitante,
+            t.nombre_torneo,
+            el.id_equipo AS id_local, el.nombre_oficial AS local_nombre, el.siglas AS local_siglas,
+            ev.id_equipo AS id_visitante, ev.nombre_oficial AS visitante_nombre, ev.siglas AS visitante_siglas,
+            c.nombre_cancha,
+            u.nombre AS arbitro_nombre, u.apellido AS arbitro_apellido
+        FROM partidos p
+        JOIN torneos t ON p.id_torneo = t.id_torneo
+        JOIN equipos el ON p.id_equipo_local = el.id_equipo
+        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+        JOIN canchas c ON p.id_cancha = c.id_cancha
+        LEFT JOIN usuarios u ON p.id_arbitro_principal = u.id_usuario
+        ORDER BY p.fecha DESC, p.hora DESC;
+    `;
+    const { rows } = await pool.query(query);
+    return rows;
+};
+
+const obtenerFichaTecnicaPublica = async (id_partido) => {
+    // A. Descubrir quiénes son los equipos local y visitante de este partido
+    const partidoQuery = `SELECT id_equipo_local, id_equipo_visitante FROM partidos WHERE id_partido = $1`;
+    const { rows: partidoRows } = await pool.query(partidoQuery, [id_partido]);
+    
+    if (partidoRows.length === 0) throw new Error("Partido no encontrado");
+    const { id_equipo_local, id_equipo_visitante } = partidoRows[0];
+
+    const queryAlineacion = `
+        SELECT 
+            pe.id_jugador, 
+            COALESCE(ap.estado, 'Ausente') AS estado_asistencia, 
+            COALESCE(ep.puntos_anotados, 0) AS puntos_anotados, 
+            COALESCE(a.rol_partido, pe.rol_equipo, 'Suplente') AS rol_partido,
+            j.nombre, 
+            j.apellido, 
+            pe.numero_camiseta, 
+            pe.es_capitan
+        FROM plantilla_equipo pe
+        JOIN jugadores j ON pe.id_jugador = j.id_jugador
+        LEFT JOIN asistencia_partidos ap ON pe.id_jugador = ap.id_jugador AND ap.id_partido = $1
+        LEFT JOIN estadisticas_partido ep ON pe.id_jugador = ep.id_jugador AND ep.id_partido = $1
+        LEFT JOIN alineaciones a ON pe.id_jugador = a.id_jugador AND a.id_partido = $1
+        WHERE pe.id_equipo = $2 AND pe.activo = true
+        ORDER BY pe.numero_camiseta ASC;
+    `;
+
+    const { rows: alineacionLocal } = await pool.query(queryAlineacion, [id_partido, id_equipo_local]);
+    const { rows: alineacionVisitante } = await pool.query(queryAlineacion, [id_partido, id_equipo_visitante]);
+
+    const querySanciones = `
+        SELECT s.tipo_sancion, s.motivo, 
+               j.nombre AS nombre_jugador, j.apellido AS apellido_jugador,
+               e.nombre_oficial AS equipo_nombre
+        FROM sanciones s
+        JOIN jugadores j ON s.id_jugador = j.id_jugador
+        JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador AND pe.activo = true
+        JOIN equipos e ON pe.id_equipo = e.id_equipo
+        WHERE s.id_partido = $1;
+    `;
+    const { rows: sanciones } = await pool.query(querySanciones, [id_partido]);
+
+    return {
+        alineacionLocal,
+        alineacionVisitante,
+        sanciones
+    };
+};
+
+module.exports = { crearMultiples, obtenerPorTorneo, finalizarPartido, 
+    obtenerResumenPartido, obtenerHistorialEquipo, guardarEvaluacion, obtenerPartidosPublicos, obtenerFichaTecnicaPublica };

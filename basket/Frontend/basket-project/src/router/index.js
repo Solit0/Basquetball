@@ -4,16 +4,40 @@ import Entrenador from '../views/EntrenadorDashboard.vue'
 import CreateTeam from '../views/CreateTeam.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import Espectadores from '../views/Espectadores.vue'
-import ArbitroDashboard from '../views/ArbitroDashboard.vue' // ← Agregar esta vista
+import ArbitroDashboard from '../views/ArbitroDashboard.vue' 
 import EquiposLibres from '../views/EquiposLibres.vue'
+import TorneosPublicos from '@/views/Espectadores/TorneosPublicos.vue'
+import HorariosPublicos from '@/views/Espectadores/HorariosPublicos.vue'
+import EmisionesPublicas from '@/views/Espectadores/EmisionesPublicas.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      // CORRECCIÓN: Ahora redirige al contenido principal en lugar de cargar solo el Navbar
       path: '/', 
       name: 'Inicio',
-      component: Espectadores,
+      redirect: '/horarios' 
+    },
+    {
+        path: '/transmisiones',
+        name: 'Transmisiones',
+        component: Espectadores
+    },
+    {
+        path: '/torneos-publicos',
+        name: 'TorneosPublicos',
+        component: TorneosPublicos
+    },
+    {
+        path: '/horarios',
+        name: 'HorariosPublicos',
+        component: HorariosPublicos
+    },
+    {
+        path: '/emisiones',
+        name: 'Emisiones',
+        component: EmisionesPublicas
     },
     {
       path: '/login',
@@ -54,10 +78,8 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-    
     const estaLogueado = localStorage.getItem('usuario_id') !== null
     
-    // Mejor manejo del parseo de JSON
     let usuario = {}
     try {
         usuario = JSON.parse(localStorage.getItem('usuario') || '{}')
@@ -69,7 +91,6 @@ router.beforeEach((to, from, next) => {
         next('/login')
     } 
     else if (to.meta.requiresAuth && to.meta.rolAceptado && to.meta.rolAceptado !== usuario.rol) {
-        // Redirigir a su dashboard correspondiente si no tiene permiso
         if (usuario.rol === 'entrenador') {
             next('/entrenador')
         } else if (usuario.rol === 'administrador') {

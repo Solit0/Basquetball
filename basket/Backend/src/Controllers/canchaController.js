@@ -17,6 +17,9 @@ const crearCancha = async (req, res, next) => {
             cancha: nuevaCancha
         });
     } catch (error) {
+        if (error.message.includes('Ya existe una cancha')) {
+            return res.status(400).json({ error: error.message });
+        }
         next(error);
     }
 };

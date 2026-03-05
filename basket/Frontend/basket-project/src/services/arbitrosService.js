@@ -33,3 +33,31 @@ export const iniciarPartidoService = async (idPartido) => {
     const response = await api.put(`/arbitros/partidos/${idPartido}/iniciar`);
     return response.data;
 };
+export const obtenerTorneosHistorialService = async (idArbitro) => {
+    const response = await api.get(`/arbitros/${idArbitro}/historial-torneos`);
+    return response.data;
+}
+
+export const obtenerPartidosHistorialService = async (idArbitro, idTorneo) => {
+    const response = await api.get(`/arbitros/${idArbitro}/historial-torneos/${idTorneo}`);
+    return response.data;
+}
+
+export const obtenerResumenPartidoService = async (idPartido) => {
+    const response = await api.get(`/arbitros/partido/${idPartido}/resumen`);
+    return response.data;
+}
+export const obtenerEvaluacionesService = async (idArbitro) => {
+    const response = await api.get(`/arbitros/${idArbitro}/evaluaciones`);
+    return response.data;
+}
+
+export const responderEvaluacionService = async (idEvaluacion, respuesta) => {
+    const response = await api.post(`/arbitros/evaluacion/${idEvaluacion}/responder`, { respuesta });
+    return response.data;
+}
+
+export const obtenerPromedioArbitroService = async (idArbitro) => {
+    const response = await api.get(`/arbitros/${idArbitro}/promedio`);
+    return response.data;
+}

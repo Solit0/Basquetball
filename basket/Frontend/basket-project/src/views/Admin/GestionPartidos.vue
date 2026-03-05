@@ -44,11 +44,17 @@
                     </p>
                 </div>
                 
-                <button v-if="partidosOficiales.length === 0 && partidosGenerados.length === 0" @click="generarBrackets"
-                        class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded shadow-md hover:bg-indigo-700 transition mt-4 md:mt-0 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    Iniciar torneo y generar la primera ronda
-                </button>
+                <div v-if="partidosOficiales.length === 0 && partidosGenerados.length === 0" class="mt-4 md:mt-0">
+                    <button v-if="equiposInscritos.length === torneoSeleccionado.numero_equipos" @click="generarBrackets"
+                            class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded shadow-md hover:bg-indigo-700 transition flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        Iniciar torneo y generar la primera ronda
+                    </button>
+                    <div v-else class="flex items-center bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 rounded-lg shadow-sm">
+                        <svg class="w-5 h-5 mr-2 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span class="text-sm font-bold">Necesitan estar todos los cupos llenos del torneo para generar los partidos (Actual: {{ equiposInscritos.length }} / Requeridos: {{ torneoSeleccionado.numero_equipos }})</span>
+                    </div>
+                </div>
 
                 <button v-if="sePuedeGenerarSiguienteRonda && partidosGenerados.length === 0" @click="generarBrackets"
                         class="px-6 py-2.5 bg-amber-500 text-white font-bold rounded shadow-md hover:bg-amber-600 transition mt-4 md:mt-0 flex items-center animate-pulse">
@@ -145,21 +151,23 @@
                             <div>
                                 <label class="block text-xs font-black text-gray-500 uppercase mb-1">Fecha</label>
                                 <input type="date" v-model="p.fecha" required :min="limiteInicio" :max="limiteFin"
-                                       class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                        class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
                             </div>
                             <div>
                                 <label class="block text-xs font-black text-gray-500 uppercase mb-1">Hora</label>
                                 <input type="time" v-model="p.hora" required 
-                                       class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                        class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
                             </div>
                             <div>
                                 <label class="block text-xs font-black text-gray-500 uppercase mb-1">Árbitro</label>
                                 <select v-model="p.id_arbitro_principal" required 
-                                       class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                        class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
                                     <option value="" disabled>Seleccione...</option>
+                                    
                                     <option v-for="arb in listaArbitros" :key="arb.id_usuario" :value="arb.id_usuario">
-                                        {{ arb.nombre }} {{ arb.apellido }}
+                                        {{ arb.nombre }} {{ arb.apellido }} (⭐ {{ arb.promedio || '0.0' }})
                                     </option>
+
                                 </select>
                             </div>
                         </div>
@@ -192,6 +200,8 @@ import { guardarPartidosMultiples, obtenerPartidosPorTorneo } from '../../servic
 import ModalResultadoPartido from '../modals/ModalResultadoPartido.vue' 
 import ModalResumenPartido from '../modals/ModalResumenPartido.vue'
 import { obtenerUsuariosService } from '../../services/usuarioService'
+import { obtenerPromedioArbitroService } from '../../services/arbitrosService'
+
 const torneos = ref([])
 const torneoSeleccionado = ref(null)
 const equiposInscritos = ref([])
@@ -207,15 +217,12 @@ const partidoParaResumen = ref(null)
 
 const limiteInicio = computed(() => {
     if (!torneoSeleccionado.value || !torneoSeleccionado.value.fecha_inicio) return '';
-
     const inicioTorneo = torneoSeleccionado.value.fecha_inicio.split('T')[0];
     if (partidosOficiales.value.length > 0) {
-    
         const fechasPartidos = partidosOficiales.value.map(p => p.fecha.split('T')[0]);
         const fechaMasAvanzada = fechasPartidos.reduce((max, actual) => actual > max ? actual : max);
         return fechaMasAvanzada > inicioTorneo ? fechaMasAvanzada : inicioTorneo;
     }
-
     return inicioTorneo;
 });
 const limiteFin = computed(() => torneoSeleccionado.value?.fecha_fin ? torneoSeleccionado.value.fecha_fin.split('T')[0] : '');
@@ -244,12 +251,24 @@ const campeon = computed(() => {
     return null;
 });
 
-
 const cargarTorneos = async () => {
     torneos.value = await obtenerTorneosActivosService()
     try {
         const usuarios = await obtenerUsuariosService()
-        listaArbitros.value = usuarios.filter(u => u.rol === 'arbitro')
+        const arbitros = usuarios.filter(u => u.rol === 'arbitro')
+        
+        const arbitrosConCalificacion = await Promise.all(
+            arbitros.map(async (arb) => {
+                try {
+                    const stats = await obtenerPromedioArbitroService(arb.id_usuario)
+                    return { ...arb, promedio: stats.promedio }
+                } catch (e) {
+                    return { ...arb, promedio: '0.0' } 
+                }
+            })
+        )
+        
+        listaArbitros.value = arbitrosConCalificacion
     } catch (error) {
         console.error("Error al cargar árbitros:", error)
     }
@@ -261,7 +280,6 @@ const seleccionarTorneo = async (torneo) => {
     
     try {
         partidosOficiales.value = await obtenerPartidosPorTorneo(torneo.id_torneo)
-        // IMPORTANTE: Esto ahora trae SOLO a los ganadores (estado = Aprobada)
         equiposInscritos.value = await obtenerEquiposInscritosService(torneo.id_torneo)
     } catch (e) {
         console.error(e)
@@ -315,17 +333,92 @@ const generarBrackets = () => {
     partidosGenerados.value = matches
 }
 
+// ---------------------------------------------------------
+// LÓGICA DE VALIDACIÓN DE ÁRBITROS
+// ---------------------------------------------------------
+const validarArbitros = () => {
+    // 1. Unificamos todos los partidos (los que ya existen en el torneo + los nuevos)
+    // para tener una visión global de la carga de trabajo de los árbitros.
+    const todosLosPartidos = [
+        ...partidosOficiales.value.map(p => ({
+            id_arbitro: p.id_arbitro_principal,
+            fecha: p.fecha.split('T')[0], // Aseguramos formato YYYY-MM-DD
+            hora: p.hora
+        })),
+        ...partidosGenerados.value.map(p => ({
+            id_arbitro: p.id_arbitro_principal,
+            fecha: p.fecha,
+            hora: p.hora
+        }))
+    ];
+
+    // 2. Agrupamos los partidos por Árbitro y por Fecha
+    // Estructura: { 'idArbitro_fecha': [ { hora: '10:00' }, { hora: '18:00' } ] }
+    const mapaArbitros = {};
+
+    for (const p of todosLosPartidos) {
+        if (!p.id_arbitro || !p.fecha || !p.hora) continue;
+
+        const clave = `${p.id_arbitro}_${p.fecha}`;
+        if (!mapaArbitros[clave]) {
+            mapaArbitros[clave] = [];
+        }
+        
+        // Convertimos la hora a un objeto Date (usando un día base falso) para facilitar la resta
+        const horaDate = new Date(`1970-01-01T${p.hora}:00`);
+        mapaArbitros[clave].push(horaDate);
+    }
+
+    // 3. Revisamos las reglas para cada combinación (Árbitro + Día)
+    for (const clave in mapaArbitros) {
+        const horarios = mapaArbitros[clave];
+        const [idArbitro, fecha] = clave.split('_');
+
+        // REGLA 1: Máximo 2 partidos el mismo día
+        if (horarios.length > 2) {
+            const arbitroObj = listaArbitros.value.find(a => a.id_usuario == idArbitro);
+            const nombreArbitro = arbitroObj ? `${arbitroObj.nombre} ${arbitroObj.apellido}` : 'Un árbitro';
+            return `❌ SOBRECARGA: ${nombreArbitro} está asignado a ${horarios.length} partidos el día ${fecha}. El límite es 2.`;
+        }
+
+        // REGLA 2: Diferencia de 6 horas si hay 2 partidos
+        if (horarios.length === 2) {
+            // Ordenamos los horarios para asegurar que restamos el mayor menos el menor
+            horarios.sort((a, b) => a - b);
+            
+            // Restamos (el resultado es en milisegundos) y lo pasamos a horas
+            const diffMilisegundos = horarios[1] - horarios[0];
+            const diffHoras = diffMilisegundos / (1000 * 60 * 60);
+
+            if (diffHoras < 6) {
+                const arbitroObj = listaArbitros.value.find(a => a.id_usuario == idArbitro);
+                const nombreArbitro = arbitroObj ? `${arbitroObj.nombre} ${arbitroObj.apellido}` : 'Un árbitro';
+                return `❌ DESCANSO INSUFICIENTE: ${nombreArbitro} tiene 2 partidos el día ${fecha} con menos de 6 horas de diferencia. (Diferencia actual: ${diffHoras.toFixed(1)} hrs).`;
+            }
+        }
+    }
+
+    return null; // Si devuelve null, significa que todo está perfecto
+}
+
 const guardarCalendario = async () => {
     const minStr = limiteInicio.value;
     const maxStr = limiteFin.value;
 
+    // Validación Básica: Fechas y Horas llenas + Rango correcto
     for (const p of partidosGenerados.value) {
-        if (!p.fecha || !p.hora) {
-            return alert(`Falta ingresar fecha u hora en el partido de ${p.local_nombre} vs ${p.visitante_nombre}`);
+        if (!p.fecha || !p.hora || !p.id_arbitro_principal) {
+            return alert(`Falta ingresar fecha, hora o árbitro en el partido de ${p.local_nombre} vs ${p.visitante_nombre}`);
         }
         if (p.fecha < minStr || p.fecha > maxStr) {
             return alert(`❌ ERROR DE FECHA:\n\nEl partido ${p.local_nombre} vs ${p.visitante_nombre} tiene la fecha ${p.fecha}.\n\nDebe jugarse entre el ${minStr} y el ${maxStr}.`);
         }
+    }
+
+    // Validación Avanzada: Carga de trabajo de los Árbitros
+    const errorArbitros = validarArbitros();
+    if (errorArbitros) {
+        return alert(errorArbitros);
     }
 
     procesando.value = true

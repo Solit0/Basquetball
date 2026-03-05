@@ -11,20 +11,25 @@ const obtenerTodas = async () => {
     return rows;
 };
 
-const crear = async (datosCancha) => {
-    const { nombre_cancha, capacidad, direccion } = datosCancha;
+const crear = async (canchaData) => {
+    const checkQuery = `SELECT id_cancha FROM canchas WHERE LOWER(direccion) = LOWER($1)`;
+    const checkResult = await pool.query(checkQuery, [canchaData.direccion]);
     
-    const query = `
-        INSERT INTO canchas (nombre_cancha, capacidad, direccion)
-        VALUES ($1, $2, $3) 
-        RETURNING *;
+    if (checkResult.rows.length > 0) {
+        throw new Error("Ya existe una cancha registrada con esta misma dirección exacta.");
+    }
+    const insertQuery = `
+        INSERT INTO canchas (nombre_cancha, direccion, capacidad)
+        VALUES ($1, $2, $3) RETURNING *;
     `;
-    const values = [nombre_cancha, capacidad || null, direccion];
+    const { rows } = await pool.query(insertQuery, [
+        canchaData.nombre_cancha,
+        canchaData.direccion,
+        canchaData.capacidad || null
+    ]);
     
-    const { rows } = await pool.query(query, values);
     return rows[0];
 };
-
 module.exports = {
     obtenerTodas,
     crear

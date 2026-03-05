@@ -52,5 +52,23 @@ const guardarEvaluacion = async (req, res, next) => {
         next(error);
     }
 };
+const getPartidosPublicos = async (req, res, next) => {
+    try {
+        const partidos = await partidosService.obtenerPartidosPublicos();
+        res.status(200).json(partidos);
+    } catch (error) {
+        next(error);
+    }
+};
 
-module.exports = { crearBulk, obtenerPorTorneo, registrarResultado, obtenerResumen, obtenerHistorialEquipo, guardarEvaluacion };
+const getFichaTecnicaPublica = async (req, res, next) => {
+    try {
+        const { id_partido } = req.params;
+        const ficha = await partidosService.obtenerFichaTecnicaPublica(id_partido);
+        res.status(200).json(ficha);
+    } catch (error) {
+        next(error);
+    }
+};
+module.exports = { crearBulk, obtenerPorTorneo, registrarResultado, obtenerResumen, 
+    obtenerHistorialEquipo, guardarEvaluacion, getPartidosPublicos, getFichaTecnicaPublica };
