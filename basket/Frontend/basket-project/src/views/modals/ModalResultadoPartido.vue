@@ -54,7 +54,17 @@
                                 <h5 class="font-bold text-gray-800 bg-indigo-50 px-3 py-2 rounded text-sm mb-3">Equipo Local: {{ partido.local_nombre }}</h5>
                                 <div v-if="jugadoresLocal.length === 0" class="text-xs text-gray-500 italic">No hay jugadores registrados en este equipo.</div>
                                 <div v-for="jugador in puntosLocal" :key="jugador.id_jugador" class="flex justify-between items-center mb-2 border-b border-gray-50 pb-2">
-                                    <span class="text-sm text-gray-700 truncate pr-2">#{{ jugador.numero_camiseta || '-' }} {{ jugador.nombre }}</span>
+                                    
+                                    <div class="text-sm text-gray-700 truncate pr-2 flex items-center">
+                                        <span class="mr-2">#{{ jugador.numero_camiseta || '-' }}</span>
+                                        <span>{{ jugador.nombre }} {{ jugador.apellido }}</span>
+                                        
+                                        <span v-if="jugador.es_capitan === true || jugador.es_capitan === 'true' || jugador.rol === 'Capitán'" 
+                                              class="ml-2 text-[9px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded shadow-sm border border-yellow-500">
+                                            © CAP
+                                        </span>
+                                    </div>
+
                                     <input type="number" v-model="jugador.puntos" min="0" class="w-16 px-2 py-1 text-center border border-gray-300 rounded text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
                                 </div>
                             </div>
@@ -63,7 +73,17 @@
                                 <h5 class="font-bold text-gray-800 bg-gray-100 px-3 py-2 rounded text-sm mb-3">Equipo Visitante: {{ partido.visitante_nombre }}</h5>
                                 <div v-if="jugadoresVisitante.length === 0" class="text-xs text-gray-500 italic">No hay jugadores registrados en este equipo.</div>
                                 <div v-for="jugador in puntosVisitante" :key="jugador.id_jugador" class="flex justify-between items-center mb-2 border-b border-gray-50 pb-2">
-                                    <span class="text-sm text-gray-700 truncate pr-2">#{{ jugador.numero_camiseta || '-' }} {{ jugador.nombre }}</span>
+                                    
+                                    <div class="text-sm text-gray-700 truncate pr-2 flex items-center">
+                                        <span class="mr-2">#{{ jugador.numero_camiseta || '-' }}</span>
+                                        <span>{{ jugador.nombre }} {{ jugador.apellido }}</span>
+                                        
+                                        <span v-if="jugador.es_capitan === true || jugador.es_capitan === 'true' || jugador.rol === 'Capitán'" 
+                                              class="ml-2 text-[9px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded shadow-sm border border-yellow-500">
+                                            © CAP
+                                        </span>
+                                    </div>
+
                                     <input type="number" v-model="jugador.puntos" min="0" class="w-16 px-2 py-1 text-center border border-gray-300 rounded text-sm font-bold focus:ring-2 focus:ring-gray-500 outline-none">
                                 </div>
                             </div>
@@ -87,9 +107,9 @@
                         <div v-if="incidentes.length > 0" class="space-y-3 mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100">
                             <h5 class="text-xs font-black text-orange-800 uppercase">Registro de Incidentes</h5>
                             <div v-for="(inc, index) in incidentes" :key="index" class="flex flex-wrap md:flex-nowrap gap-2 items-start bg-white p-3 rounded shadow-sm border border-orange-200">
-                                <input type="text" v-model="inc.tipo_incidente" placeholder="Tipo (Ej. Insultos)" required class="flex-1 min-w-[120px] px-2 py-1 border rounded text-xs outline-none focus:ring-1 focus:ring-orange-500">
+                                <input type="text" v-model="inc.tipo_incidente" placeholder="Tipo (Ej. Insultos)" required class="flex-1 min-w-30 px-2 py-1 border rounded text-xs outline-none focus:ring-1 focus:ring-orange-500">
                                 <input type="number" v-model="inc.minuto_aprox" placeholder="Minuto" class="w-20 px-2 py-1 border rounded text-xs outline-none focus:ring-1 focus:ring-orange-500">
-                                <input type="text" v-model="inc.descripcion_breve" placeholder="Descripción breve..." class="flex-2 min-w-[200px] w-full md:w-auto px-2 py-1 border rounded text-xs outline-none focus:ring-1 focus:ring-orange-500">
+                                <input type="text" v-model="inc.descripcion_breve" placeholder="Descripción breve..." class="flex-2 min-w-50 w-full md:w-auto px-2 py-1 border rounded text-xs outline-none focus:ring-1 focus:ring-orange-500">
                                 <button type="button" @click="incidentes.splice(index, 1)" class="p-1 text-red-500 hover:bg-red-50 rounded text-xs font-bold">Quitar</button>
                             </div>
                         </div>
@@ -115,12 +135,19 @@
                                     <label class="block text-[10px] font-black text-gray-500 uppercase">Jugador Infractor</label>
                                     <select v-model="san.id_jugador" required class="w-full mt-1 p-2 border rounded text-sm outline-none focus:ring-1 focus:ring-red-500">
                                         <option value="" disabled>Seleccione jugador...</option>
+                                        
                                         <optgroup :label="'Local: ' + partido.local_nombre">
-                                            <option v-for="j in jugadoresLocal" :value="j.id_jugador" :key="'L'+j.id_jugador">{{ j.nombre }}</option>
+                                            <option v-for="j in jugadoresLocal" :value="j.id_jugador" :key="'L'+j.id_jugador">
+                                                {{ j.nombre }} {{ j.apellido }} {{ (j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán') ? ' (© CAP)' : '' }}
+                                            </option>
                                         </optgroup>
+                                        
                                         <optgroup :label="'Visitante: ' + partido.visitante_nombre">
-                                            <option v-for="j in jugadoresVisitante" :value="j.id_jugador" :key="'V'+j.id_jugador">{{ j.nombre }}</option>
+                                            <option v-for="j in jugadoresVisitante" :value="j.id_jugador" :key="'V'+j.id_jugador">
+                                                {{ j.nombre }} {{ j.apellido }} {{ (j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán') ? ' (© CAP)' : '' }}
+                                            </option>
                                         </optgroup>
+                                        
                                     </select>
                                 </div>
                                 <div>
@@ -160,7 +187,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { obtenerUsuariosService } from '../../services/usuarioService'
-// Asumo que tienes un servicio de equipos o jugadores para esto. Si no, ajusta la ruta
+import { obtenerAlineacionPartidoService } from '../../services/arbitrosService'
 import { obtenerJugadoresPorEquipoService } from '../../services/equiposService'
 import { finalizarPartidoService } from '../../services/partidosService'
 
@@ -176,7 +203,6 @@ const listaArbitros = ref([])
 const jugadoresLocal = ref([])
 const jugadoresVisitante = ref([])
 
-// Arrays para armar la info
 const puntosLocal = ref([])
 const puntosVisitante = ref([])
 const incidentes = ref([])
@@ -195,12 +221,15 @@ onMounted(async () => {
         const usuarios = await obtenerUsuariosService();
         listaArbitros.value = usuarios.filter(u => u.rol === 'arbitro');
         form.value.id_arbitro = props.partido.id_arbitro_principal || null;
+        const alineacionLocal = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_equipo_local);
+        const alineacionVisitante = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_equipo_visitante);
+        jugadoresLocal.value = alineacionLocal.filter(j => j.estado_asistencia === 'Presente');
+        jugadoresVisitante.value = alineacionVisitante.filter(j => j.estado_asistencia === 'Presente');
 
-        jugadoresLocal.value = await obtenerJugadoresPorEquipoService(props.partido.id_equipo_local);
-        jugadoresVisitante.value = await obtenerJugadoresPorEquipoService(props.partido.id_equipo_visitante);
-
-        puntosLocal.value = jugadoresLocal.value.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, numero_camiseta: j.numero_camiseta, puntos: 0 }));
-        puntosVisitante.value = jugadoresVisitante.value.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, numero_camiseta: j.numero_camiseta, puntos: 0 }));
+        puntosLocal.value = jugadoresLocal.value.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, 
+            numero_camiseta: j.numero_camiseta, puntos: 0, apellido: j.apellido, es_capitan: j.es_capitan, rol: j.rol }));
+        puntosVisitante.value = jugadoresVisitante.value.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, apellido: j.apellido,
+            numero_camiseta: j.numero_camiseta, puntos: 0, es_capitan: j.es_capitan, rol: j.rol }));
 
     } catch (error) {
         console.error("Error cargando datos del modal", error)

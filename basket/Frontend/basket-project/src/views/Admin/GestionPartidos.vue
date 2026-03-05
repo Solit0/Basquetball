@@ -101,15 +101,21 @@
                                 {{ partido.fecha.split('T')[0] }} a las {{ partido.hora }} | Sede: {{ partido.nombre_cancha }}
                             </div>
 
-                            <button v-if="partido.estado !== 'Finalizado'" @click="abrirModalResultado(partido)"
-                                    class="w-full py-2.5 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-lg hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100">
-                                Registrar Resultado Oficial
-                            </button>
-                            
-                            <button v-else @click="abrirModalResumen(partido)"
+                            <button v-if="partido.estado === 'Finalizado'" @click="abrirModalResumen(partido)"
                                     class="w-full py-2.5 bg-green-50 text-green-700 font-bold text-sm rounded-lg hover:bg-green-100 transition-colors border border-green-200 flex items-center justify-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 Mostrar Resumen
+                            </button>
+                            
+                            <button v-else-if="partido.estado === 'En Juego'" @click="abrirModalResultado(partido)"
+                                    class="w-full py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-lg hover:bg-indigo-700 transition-colors border border-indigo-700 shadow-sm animate-pulse">
+                                Registrar Resultado Oficial
+                            </button>
+
+                            <button v-else disabled
+                                    class="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-sm rounded-lg cursor-not-allowed border border-gray-200 flex items-center justify-center" title="El árbitro aún no ha dado inicio al partido">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Esperando al Árbitro...
                             </button>
                         </div>
                     </div>
@@ -353,7 +359,6 @@ const cerrarModalYRecargar = async () => {
     
     if (torneoSeleccionado.value) {
         partidosOficiales.value = await obtenerPartidosPorTorneo(torneoSeleccionado.value.id_torneo)
-        // RECARGAMOS LOS EQUIPOS porque uno acaba de ser eliminado
         equiposInscritos.value = await obtenerEquiposInscritosService(torneoSeleccionado.value.id_torneo)
     }
 }

@@ -4,7 +4,7 @@ const torneosController = require('../Controllers/torneosController');
 
 router.post('/', torneosController.crear);
 router.get('/activos', torneosController.obtenerActivos);
-
+router.get('/entrenadores/:id_entrenador/torneos', torneosController.getTorneosDeEntrenador);
 router.put('/:id', torneosController.editar);
 router.delete('/:id', torneosController.eliminar);
 router.put('/:id/iniciar', torneosController.iniciar);

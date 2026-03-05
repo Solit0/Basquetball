@@ -173,5 +173,51 @@ const finalizarPartido = async (id_partido, datosResultado) => {
         client.release();
     }
 };
-
-module.exports = { crearMultiples, obtenerPorTorneo, finalizarPartido, obtenerResumenPartido };
+const obtenerHistorialEquipo = async (id_entrenador) => {
+    const query = `
+        SELECT 
+            p.id_partido, 
+            el.nombre_oficial AS local_nombre, 
+            ev.nombre_oficial AS visitante_nombre, 
+            p.id_equipo_local,
+            p.id_equipo_visitante,
+            p.marcador_local, 
+            p.marcador_visitante, 
+            p.fecha, 
+            p.hora, 
+            p.id_arbitro_principal,
+            i.id_informe, 
+            i.contenido AS informe_contenido, -- Renombramos 'contenido' para el frontend
+            ea.id_evaluacion, 
+            ea.puntuacion, 
+            ea.comentarios, 
+            ea.respuesta_arbitro
+        FROM partidos p
+        JOIN equipos el ON p.id_equipo_local = el.id_equipo
+        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+        LEFT JOIN informes_partido i ON p.id_partido = i.id_partido
+        LEFT JOIN evaluaciones_arbitro ea ON i.id_informe = ea.id_informe AND ea.id_evaluador = $1
+        WHERE (el.id_entrenador = $1 OR ev.id_entrenador = $1)
+          AND p.estado = 'Finalizado'
+        ORDER BY p.fecha DESC, p.hora DESC;
+    `;
+    const { rows } = await pool.query(query, [id_entrenador]);
+    return rows;
+};
+const guardarEvaluacion = async (datosEval) => {
+    const query = `
+        INSERT INTO evaluaciones_arbitro 
+        (id_informe, id_arbitro, id_evaluador, puntuacion, comentarios)
+        VALUES ($1, $2, $3, $4, $5) 
+        RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [
+        datosEval.id_informe, 
+        datosEval.id_arbitro, 
+        datosEval.id_evaluador, 
+        datosEval.puntuacion, 
+        datosEval.comentarios
+    ]);
+    return rows[0];
+};
+module.exports = { crearMultiples, obtenerPorTorneo, finalizarPartido, obtenerResumenPartido, obtenerHistorialEquipo, guardarEvaluacion };

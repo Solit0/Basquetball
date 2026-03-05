@@ -326,40 +326,33 @@ onMounted(() => {
     cargarTorneos()
 })
 const marcarListoParaJugar = async () => {
-    // VALIDACIÓN 1: Que no quede ningún jugador con estado 'Pendiente'
     const faltanLocal = jugadoresLocal.value.some(j => j.estado_asistencia === 'Pendiente');
     const faltanVisitante = jugadoresVisitante.value.some(j => j.estado_asistencia === 'Pendiente');
 
     if (faltanLocal || faltanVisitante) {
-        return alert('⚠️ PASE DE LISTA INCOMPLETO:\n\nDebes marcar la asistencia (Presente, Ausente o Inhabilitado) de absolutamente TODOS los jugadores en ambos equipos antes de iniciar el partido.');
+        return alert('PASE DE LISTA INCOMPLETO:\n\nDebes marcar la asistencia (Presente, Ausente o Inhabilitado) de absolutamente TODOS los jugadores en ambos equipos antes de iniciar el partido.');
     }
-
-    // Obtenemos los arrays de los jugadores que sí están presentes para las siguientes validaciones
     const presentesLocal = jugadoresLocal.value.filter(j => j.estado_asistencia === 'Presente');
     const presentesVisitante = jugadoresVisitante.value.filter(j => j.estado_asistencia === 'Presente');
 
-    // VALIDACIÓN 2: Mínimo 5 jugadores 'Presentes' por equipo
     if (presentesLocal.length < 5) {
-        return alert(`❌ EQUIPO INCOMPLETO:\n\nEl equipo Local (${partidoDetalle.value.local_nombre}) solo tiene ${presentesLocal.length} jugador(es) presente(s). Se requiere un mínimo de 5 para jugar.`);
+        return alert(`EQUIPO INCOMPLETO:\n\nEl equipo Local (${partidoDetalle.value.local_nombre}) solo tiene ${presentesLocal.length} jugador(es) presente(s). Se requiere un mínimo de 5 para jugar.`);
     }
 
     if (presentesVisitante.length < 5) {
-        return alert(`❌ EQUIPO INCOMPLETO:\n\nEl equipo Visitante (${partidoDetalle.value.visitante_nombre}) solo tiene ${presentesVisitante.length} jugador(es) presente(s). Se requiere un mínimo de 5 para jugar.`);
+        return alert(`EQUIPO INCOMPLETO:\n\nEl equipo Visitante (${partidoDetalle.value.visitante_nombre}) solo tiene ${presentesVisitante.length} jugador(es) presente(s). Se requiere un mínimo de 5 para jugar.`);
     }
 
-    // VALIDACIÓN 3: Debe haber al menos un capitán entre los presentes de cada equipo
     const capitanLocalPresente = presentesLocal.some(j => j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán');
     const capitanVisitantePresente = presentesVisitante.some(j => j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán');
 
     if (!capitanLocalPresente) {
-        return alert(`🧑‍✈️ CAPITÁN AUSENTE:\n\nEl equipo Local (${partidoDetalle.value.local_nombre}) no tiene a su capitán en cancha (marcado como "Presente"). Es obligatorio que haya un capitán para iniciar el partido.`);
+        return alert(`CAPITÁN AUSENTE:\n\nEl equipo Local (${partidoDetalle.value.local_nombre}) no tiene a su capitán en cancha (marcado como "Presente"). Es obligatorio que haya un capitán para iniciar el partido.`);
     }
 
     if (!capitanVisitantePresente) {
-        return alert(`🧑‍✈️ CAPITÁN AUSENTE:\n\nEl equipo Visitante (${partidoDetalle.value.visitante_nombre}) no tiene a su capitán en cancha (marcado como "Presente"). Es obligatorio que haya un capitán para iniciar el partido.`);
+        return alert(`CAPITÁN AUSENTE:\n\nEl equipo Visitante (${partidoDetalle.value.visitante_nombre}) no tiene a su capitán en cancha (marcado como "Presente"). Es obligatorio que haya un capitán para iniciar el partido.`);
     }
-
-    // CONFIRMACIÓN FINAL
     if (!confirm('¿Confirmas que ya pasaste lista a ambos equipos, cumplen con el mínimo de jugadores, los capitanes están presentes y el partido está por comenzar?')) {
         return;
     }
@@ -368,7 +361,7 @@ const marcarListoParaJugar = async () => {
     try {
         await iniciarPartidoService(partidoDetalle.value.id_partido);
         partidoDetalle.value.estado = 'En Juego'; 
-        alert('🏀 ¡El partido ha comenzado oficialmente!');
+        alert('¡El partido ha comenzado oficialmente!');
     } catch (error) {
         console.error("Error al iniciar partido", error);
         alert('Ocurrió un error al intentar iniciar el partido.');
@@ -401,8 +394,6 @@ const seleccionarPartido = async (partido) => {
     try {
         const detalle = await obtenerDetallePartidoService(idArbitroActual.value, partido.id_partido)
         partidoDetalle.value = detalle
-
-        // Usamos el NUEVO servicio para que nos traiga también el estado_asistencia de la BD
         jugadoresLocal.value = await obtenerAlineacionPartidoService(partido.id_partido, detalle.id_local)
         jugadoresVisitante.value = await obtenerAlineacionPartidoService(partido.id_partido, detalle.id_visitante)
 
@@ -412,21 +403,19 @@ const seleccionarPartido = async (partido) => {
     }
 }
 
-// NUEVA FUNCIÓN INTERACTIVA PARA LOS BOTONES P, A, I
 const cambiarAsistencia = async (jugador, nuevoEstado) => {
-    if (jugador.estado_asistencia === nuevoEstado) return; // Si toca el mismo botón, no hace nada
+    if (jugador.estado_asistencia === nuevoEstado) return; 
     
     cargandoAsistencia.value = true;
-    const estadoAnterior = jugador.estado_asistencia; // Guardamos por si falla
+    const estadoAnterior = jugador.estado_asistencia; 
     
-    // Actualización Optimista: Cambia de color al instante para una experiencia súper rápida
     jugador.estado_asistencia = nuevoEstado; 
 
     try {
         await marcarAsistenciaJugadorService(partidoDetalle.value.id_partido, jugador.id_jugador, nuevoEstado);
     } catch (error) {
         console.error("Fallo al guardar asistencia:", error);
-        jugador.estado_asistencia = estadoAnterior; // Revertir el color si el backend falla
+        jugador.estado_asistencia = estadoAnterior; 
         alert("Ocurrió un error al guardar la asistencia en la nube.");
     } finally {
         cargandoAsistencia.value = false;

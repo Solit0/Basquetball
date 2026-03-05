@@ -1,6 +1,5 @@
 <!--ruta: /views/EntrenadorDashboard.vue-->
 <template>
-    
     <div>
         <div class="min-h-screen bg-gray-50">
             <nav class="bg-white shadow-md">
@@ -296,16 +295,13 @@
                             </div>
                         </div>
 
-                        <div v-if="activeTab === 'torneo'" class="space-y-6">
-                            <div>
-                                <h2 class="text-3xl font-bold text-gray-900">Torneo Actual</h2>
-                                <p class="mt-2 text-gray-600">Información del torneo y clasificaciones (Próximamente)</p>
-                            </div>
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-10 text-center">
-                                <p class="text-gray-500">Aún no hay datos de torneos disponibles.</p>
-                            </div>
+                        <div v-if="activeTab === 'torneo'" class="h-full animate-fade-in">
+                            <MisTorneos />
                         </div>
-
+                        
+                        <div v-if="activeTab === 'torneos-jugados'" class="h-full animate-fade-in">
+                            <HistorialPartidos />
+                        </div>
                         <div v-if="activeTab === 'perfil'" class="space-y-6 max-w-3xl mx-auto">
                             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
                                 <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
@@ -371,6 +367,8 @@ import { useRouter } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import EditarEquipo from '../modals/EditarEquipo.vue'
 import ModalAgregarJugador from '../views/ModalAgregarJugador.vue'
+import HistorialPartidos from './Entrenador/HistorialPartidos.vue'
+import MisTorneos from './Entrenador/MisTorneos.vue' 
 
 import { api } from '../Enviroments/enviroment'
 import { obtenerEquipoDeEntrenadorService, actualizarEquipoService } from '../services/equiposService'
@@ -622,3 +620,7 @@ onMounted(async () => {
     }
 })
 </script>
+<style scoped>
+.animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>

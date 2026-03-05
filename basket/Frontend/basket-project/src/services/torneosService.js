@@ -41,3 +41,7 @@ export const quitarEquipoTorneoService = async (idTorneo, idEquipo) => {
     const response = await api.delete(`/torneos/${idTorneo}/equipos/${idEquipo}`)
     return response.data
 }
+export const obtenerTorneosDeEquipoService = async (idEntrenador) => {
+    const response = await api.get(`/torneos/entrenadores/${idEntrenador}/torneos`);
+    return response.data;
+};

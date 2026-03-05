@@ -19,8 +19,6 @@ const quitarEquipo = async (id_torneo, id_equipo) => {
         if (torneoQuery.rows[0].estado !== 'En inscripción') {
             throw new Error('No puedes quitar equipos de un torneo que ya está en curso o finalizado.');
         }
-
-        // BLINDAJE: Revisar si existen partidos programados
         const partidosQuery = await client.query(`SELECT COUNT(*) FROM partidos WHERE id_torneo = $1`, [id_torneo]);
         if (parseInt(partidosQuery.rows[0].count, 10) > 0) {
             await client.query(`UPDATE torneos SET estado = 'En curso' WHERE id_torneo = $1`, [id_torneo]);
@@ -184,6 +182,19 @@ const obtenerEquiposInscritos = async (id_torneo) => {
     const { rows } = await pool.query(query, [id_torneo]);
     return rows;
 };
+const obtenerTorneosDeEntrenador = async (id_entrenador) => {
+    const query = `
+        SELECT t.id_torneo, t.nombre_torneo, t.fecha_inicio, t.fecha_fin, t.estado, t.categoria,
+               t.reglamento, e.id_equipo, i.estado_inscripcion
+        FROM torneos t
+        JOIN inscripciones i ON t.id_torneo = i.id_torneo
+        JOIN equipos e ON i.id_equipo = e.id_equipo
+        WHERE e.id_entrenador = $1 AND i.estado_inscripcion = 'Aprobada'
+        ORDER BY t.fecha_inicio DESC;
+    `;
+    const { rows } = await pool.query(query, [id_entrenador]);
+    return rows;
+};
 
 module.exports = { crearTorneo, editarTorneo, iniciarTorneo, eliminarTorneo, quitarEquipo, 
-    obtenerTodosActivos, obtenerEquiposElegibles, inscribirEquipo, obtenerEquiposInscritos };
+    obtenerTodosActivos, obtenerEquiposElegibles, inscribirEquipo, obtenerEquiposInscritos, obtenerTorneosDeEntrenador };

@@ -18,3 +18,12 @@ export const obtenerResumenPartidoService = async (idPartido) => {
     const response = await api.get(`/partidos/${idPartido}/resumen`)
     return response.data
 }
+export const obtenerHistorialEquipoService = async (idEntrenador) => {
+    const response = await api.get(`/partidos/entrenadores/${idEntrenador}/historial`);
+    return response.data;
+}
+
+export const guardarEvaluacionService = async (evaluacion) => {
+    const response = await api.post(`/partidos/evaluaciones`, evaluacion);
+    return response.data;
+}

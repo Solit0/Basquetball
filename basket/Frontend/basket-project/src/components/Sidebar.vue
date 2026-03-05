@@ -89,7 +89,32 @@
                     Alineación
                 </div>
             </button>
-
+            <button 
+                @click="hasTeam ? $emit('navigate', 'torneos-jugados') : null" 
+                :disabled="!hasTeam"
+                :title="!hasTeam ? 'Debes crear un equipo primero' : ''"
+                :class="[
+                    'w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors',
+                    !hasTeam ? 'opacity-50 cursor-not-allowed' : '',
+                    activeTab === 'torneos-jugados'
+                        ? 'bg-indigo-600 text-white'
+                        : (!hasTeam ? 'text-gray-400' : 'text-gray-300 hover:bg-gray-800')
+                ]">
+                <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center">
+                        <svg class="mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                            fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M6 3a1 1 0 000 2h2a1 1 0 100-2H6zm3.293 4.707a1 1 0 010-1.414l1.414-1.414a1 1 0 111.414 1.414L11.414 7.707a1 1 0 01-1.414 0zM10 11a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zm3.293 4.707a1 1 0 010-1.414l1.414-1.414a1 1 0 111.414 1.414L14.414 15.707a1 1 0 01-1.414 0zM6 9a1 1 0 000-2h2a1 1 0 100-2H6a3 3 0 00-3 3v2a3 3 0 003-3zm9-4h2a3 3 0 013-3v2a3-3 0 00-3-3v2a3 3 0 003-3h-2a1 1 0 110-2zM6 15a1 1 0 100-2h2a1 1 0 100-2H6a3 3 0 00-3 3v2a3 3 0 003-3zm9-4h2a3 3 0 013-3v2a3 3 0 00-3 3v2a3 3 0 003-3h-2a1 1 0 110-2z"
+                                clip-rule="evenodd" />
+                        </svg>  
+                        Historial
+                    </div>
+                    <svg v-if="!hasTeam" class="h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+            </button>
             <button @click="$emit('navigate', 'perfil')"
                 :class="[
                     'w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors',

@@ -23,6 +23,18 @@ const removerEquipo = async (req, res, next) => {
         next(error);
     }
 };
+const getTorneosDeEntrenador = async (req, res, next) => {
+    try {
+        
+        const { id_entrenador } = req.params;
+        
+        const torneos = await torneosService.obtenerTorneosDeEntrenador(id_entrenador);
+        
+        res.status(200).json(torneos);
+    } catch (error) {
+        next(error);
+    }
+};
 const editar = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -121,5 +133,6 @@ module.exports = {
     agregarEquipo,
     eliminar,
     obtenerInscritos,
-    removerEquipo
+    removerEquipo,
+    getTorneosDeEntrenador
 };

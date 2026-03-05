@@ -57,9 +57,9 @@ const router = useRouter()
 const cerrarSesion = () => {
     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
         
-        localStorage.removeItem('token')
+        localStorage.removeItem('usuario_id')
         localStorage.removeItem('usuario')
-        
+        localStorage.removeItem('token')
         router.push('/login') 
     }
 }

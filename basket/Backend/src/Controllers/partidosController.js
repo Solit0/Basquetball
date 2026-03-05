@@ -34,4 +34,23 @@ const registrarResultado = async (req, res, next) => {
         next(error);
     }
 };
-module.exports = { crearBulk, obtenerPorTorneo, registrarResultado, obtenerResumen };
+const obtenerHistorialEquipo = async (req, res, next) => {
+    try {
+        const { id_entrenador } = req.params; 
+        
+        const historial = await partidosService.obtenerHistorialEquipo(id_entrenador);
+        res.status(200).json(historial);
+    } catch (error) {
+        next(error);
+    }
+};
+const guardarEvaluacion = async (req, res, next) => {
+    try {
+        const evaluacionGuardada = await partidosService.guardarEvaluacion(req.body);
+        res.status(201).json(evaluacionGuardada);
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = { crearBulk, obtenerPorTorneo, registrarResultado, obtenerResumen, obtenerHistorialEquipo, guardarEvaluacion };
