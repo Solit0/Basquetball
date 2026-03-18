@@ -46,7 +46,12 @@ const seedDatabase = async () => {
       const query = `
         INSERT INTO usuarios (nombre, apellido, correo, contrasena, id_rol)
         VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (correo) DO NOTHING;
+        ON CONFLICT (correo) DO UPDATE 
+        SET 
+          contrasena = EXCLUDED.contrasena,
+          nombre = EXCLUDED.nombre,
+          apellido = EXCLUDED.apellido,
+          id_rol = EXCLUDED.id_rol;
       `;
       
       const values = [u.nombre, u.apellido, u.correo, hash, u.id_rol];

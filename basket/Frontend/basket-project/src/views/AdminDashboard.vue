@@ -342,7 +342,6 @@ import GestionPartidos from '../views/Admin/GestionPartidos.vue'
 import EditarTorneos from '../views/Admin/EditarTorneos.vue'
 import AdminPerfil from '../views/Admin/AdminPerfil.vue'
 
-// Importamos los nuevos servicios de transmisión
 import { 
     obtenerCanalesService, 
     crearCanalService,
@@ -366,7 +365,7 @@ const userName = ref(usuarioGuardado.nombre || 'Administrador')
 // ==========================================
 // LÓGICA DE CANALES DE TRANSMISIÓN
 // ==========================================
-const modoCanales = ref('lista') // 'lista', 'crear', 'asignar'
+const modoCanales = ref('lista') 
 const listaCanales = ref([])
 const cargandoForm = ref(false)
 const mensajeError = ref('')
@@ -376,17 +375,18 @@ const formCanal = ref({
     nombre_canal: '', id_tipo: '1', numero_canal: '', url_sitio: '', horario: ''
 })
 
-// Variables para la Asignación
 const canalParaAsignar = ref(null)
 const torneosDisponibles = ref([])
 const torneoAsignacionId = ref('')
 const partidosDelTorneo = ref([])
 const partidoAsignacionId = ref('')
-const carteleraCanal = ref([]) // <--- Ahora almacenará los datos reales de la BD
+const carteleraCanal = ref([]) 
 
 const cargarCanales = async () => {
     try {
-        listaCanales.value = await obtenerCanalesService()
+        const data = await obtenerCanalesService()
+        // Forzamos la reactividad de Vue creando un nuevo arreglo
+        listaCanales.value = [...data] 
     } catch (error) {
         console.error("Error cargando canales:", error)
     }
@@ -405,10 +405,19 @@ const handleCrearCanal = async () => {
             url_sitio: formCanal.value.id_tipo === '2' ? formCanal.value.url_sitio : null,
             horario: formCanal.value.horario
         }
+        
         await crearCanalService(payload)
         mensajeExito.value = '¡Canal registrado exitosamente!'
+        
+        // RECARGAMOS LA LISTA DESDE LA BD
         await cargarCanales() 
-        setTimeout(() => { modoCanales.value = 'lista' }, 1500)
+        
+        // LIMPIAMOS EL FORMULARIO PARA LA PRÓXIMA VEZ
+        formCanal.value = { nombre_canal: '', id_tipo: '1', numero_canal: '', url_sitio: '', horario: '' }
+        
+        setTimeout(() => { 
+            modoCanales.value = 'lista' 
+        }, 1500)
     } catch (error) {
         mensajeError.value = error.response?.data?.error || 'Ocurrió un error al guardar el canal.'
     } finally {
@@ -424,11 +433,8 @@ const abrirAsignacionPartidos = async (canal) => {
     partidosDelTorneo.value = []
     
     try {
-        // 1. Cargar Torneos
         const torneosRaw = await obtenerTorneosActivosService();
         torneosDisponibles.value = torneosRaw.filter(t => t.estado === 'En curso');
-        
-        // 2. Cargar Cartelera Real del Canal desde la BD
         carteleraCanal.value = await obtenerTransmisionesPorCanalService(canal.id_canal);
     } catch(e) {
         console.error("Error obteniendo datos de asignación", e);
@@ -455,8 +461,8 @@ const calcularHoraTransmision = (horaPartido) => {
     if (!horaPartido) return '';
     const [h, m] = horaPartido.split(':').map(Number);
     let date = new Date(2000, 0, 1, h, m);
-    date.setMinutes(date.getMinutes() - 20); // Restar 20 minutos
-    return date.toTimeString().substring(0, 5); // Retorna "HH:MM"
+    date.setMinutes(date.getMinutes() - 20); 
+    return date.toTimeString().substring(0, 5); 
 }
 
 const handleAsignarTransmision = async () => {
@@ -466,33 +472,26 @@ const handleAsignarTransmision = async () => {
     const fechaPartido = partido.fecha.split('T')[0];
     const horaTrans = calcularHoraTransmision(partido.hora);
 
-    // ==========================================
-    // VALIDACIONES DEL FRONTEND
-    // ==========================================
-    
-    // Obtenemos todos los partidos ya programados para este canal en la misma fecha
     const asignacionesDelDia = carteleraCanal.value.filter(t => t.fecha.split('T')[0] === fechaPartido);
     
-    // REGLA 1: Máximo 3 transmisiones por día en ESTE canal
     if (asignacionesDelDia.length >= 3) {
         return alert(`REGLA DE NEGOCIO: Este canal ya superó el límite de 3 transmisiones para el día ${fechaPartido}.`);
     }
+
     const [hNueva, mNueva] = horaTrans.split(':').map(Number);
     const minutosNuevaTrans = (hNueva * 60) + mNueva;
 
     for (const t of asignacionesDelDia) {
-        // Convertimos la hora existente a minutos
         const [hExistente, mExistente] = t.hora_transmision.split(':').map(Number);
         const minutosExistente = (hExistente * 60) + mExistente;
-
-        // Calculamos la diferencia absoluta en minutos
         const diferenciaMinutos = Math.abs(minutosNuevaTrans - minutosExistente);
 
         if (diferenciaMinutos < 240) {
             const horasFaltantes = (240 - diferenciaMinutos) / 60;
-            return alert(`CRUCE DE HORARIOS: Ya hay un partido programado a las ${t.hora_transmision.substring(0, 5)}.\n\nPor políticas de transmisión debe haber al menos 4 horas de diferencia entre cada evento para evitar cortes durante el partido. (Faltan ${horasFaltantes.toFixed(1)} horas de separación).`);
+            return alert(`CRUCE DE HORARIOS: Ya hay un partido programado a las ${t.hora_transmision.substring(0, 5)}.\n\nDebe haber al menos 4 horas de diferencia entre cada evento para evitar cortes. (Faltan ${horasFaltantes.toFixed(1)} horas).`);
         }
     }
+
     try {
         await asignarTransmisionService(canalParaAsignar.value.id_canal, {
             id_partido: partido.id_partido,
@@ -501,7 +500,6 @@ const handleAsignarTransmision = async () => {
         
         alert("¡Partido asignado a la parrilla de programación exitosamente!");
         partidoAsignacionId.value = '';
-        
         carteleraCanal.value = await obtenerTransmisionesPorCanalService(canalParaAsignar.value.id_canal);
     } catch (error) {
         alert(error.response?.data?.error || "Error al asignar el partido.");
@@ -513,13 +511,15 @@ const quitarTransmision = async (idTransmision) => {
     
     try {
         await eliminarTransmisionService(idTransmision);
-        // Filtrarlo visualmente para no tener que recargar toda la lista
         carteleraCanal.value = carteleraCanal.value.filter(t => t.id_transmision !== idTransmision);
     } catch (error) {
         alert("Ocurrió un error al intentar eliminar la transmisión.");
     }
 }
 
+// ==========================================
+// LÓGICA DE CUENTAS
+// ==========================================
 const mostrandoFormCuenta = ref(false)
 const listaCuentas = ref([])
 const cargandoFormCuenta = ref(false)

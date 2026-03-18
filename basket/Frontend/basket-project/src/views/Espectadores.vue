@@ -26,10 +26,10 @@
               Todos los canales
             </button>
             <button
-              @click="filterCategory = 'satelital'"
+              @click="filterCategory = 1"
               :class="[
                 'px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center',
-                filterCategory === 'satelital'
+                filterCategory === 1
                   ? 'bg-blue-600 text-white shadow-md transform scale-105'
                   : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600'
               ]"
@@ -38,10 +38,10 @@
               Satelital / TV
             </button>
             <button
-              @click="filterCategory = 'online'"
+              @click="filterCategory = 2"
               :class="[
                 'px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center',
-                filterCategory === 'online'
+                filterCategory === 2
                   ? 'bg-emerald-500 text-white shadow-md transform scale-105'
                   : 'bg-white border border-gray-200 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
               ]"
@@ -70,11 +70,11 @@
               <div class="flex-1 pr-4">
                 <h4 class="text-xl font-black text-gray-900 group-hover:text-indigo-600 transition-colors">{{ canal.nombre_canal }}</h4>
                 
-                <p v-if="canal.numero_canal" class="text-sm text-slate-500 mt-2 font-bold flex items-center">
+                <p v-if="canal.id_tipo == 1 && canal.numero_canal" class="text-sm text-slate-500 mt-2 font-bold flex items-center">
                   <span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 mr-2">CH {{ canal.numero_canal }}</span>
                 </p>
                 
-                <a v-if="canal.url_sitio" :href="canal.url_sitio" target="_blank" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 mt-3 inline-flex items-center group-hover:underline">
+                <a v-if="canal.id_tipo == 2 && canal.url_sitio" :href="canal.url_sitio" target="_blank" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 mt-3 inline-flex items-center group-hover:underline">
                   Ver Transmisión 
                   <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                 </a>
@@ -88,12 +88,12 @@
               <span
                 :class="[
                   'inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm',
-                  canal.tipo_canal === 'satelital'
+                  canal.id_tipo == 1
                     ? 'bg-blue-50 text-blue-700 border-blue-200'
                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 ]"
               >
-                {{ canal.tipo_canal }}
+                {{ canal.id_tipo == 1 ? 'Satelital' : 'Online' }}
               </span>
             </div>
           </div>
@@ -112,7 +112,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { obtenerCanalesService } from '../services/canalService' 
-import NavbarEspectador from '../components/NavbarEspectador.vue' // Importamos el nuevo menú
+import NavbarEspectador from '../components/NavbarEspectador.vue'
 
 const filterCategory = ref(null)
 const canales = ref([])
@@ -130,9 +130,13 @@ onMounted(async () => {
   }
 })
 
+// Filtro matemático simple usando id_tipo
 const filteredCanales = computed(() => {
-  if (!filterCategory.value) return canales.value
-  return canales.value.filter(canal => canal.tipo_canal === filterCategory.value)
+  // Si filterCategory es null (Todos), mostramos todos
+  if (filterCategory.value === null) return canales.value;
+  
+  // Filtramos comparando el id_tipo directamente
+  return canales.value.filter(canal => canal.id_tipo == filterCategory.value);
 })
 </script>
 

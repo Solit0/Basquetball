@@ -65,6 +65,13 @@
                         {{ cargando ? 'Iniciando sesión...' : 'Iniciar Sesión' }}
                     </button>
                 </div>
+
+                <div class="text-center mt-3">
+                    <button type="button" @click="router.push('/')"
+                        class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                        ← Volver a canales
+                    </button>
+                </div>
             </form>
         </div>
     </div>

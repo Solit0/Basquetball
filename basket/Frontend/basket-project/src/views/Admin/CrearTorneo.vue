@@ -266,10 +266,17 @@
                             class="bg-white p-4 rounded-lg flex justify-between items-center shadow-sm border border-indigo-100 hover:border-indigo-300 transition-colors">
                             <div>
                                 <p class="font-bold text-gray-900 leading-tight">{{ eq.nombre_oficial }} <span class="text-xs text-gray-500 font-normal">({{ eq.siglas }})</span></p>
-                                <p class="text-[10px] text-gray-500 font-bold uppercase mt-1 flex items-center">
-                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                    {{ eq.nombre_cancha || 'Sin Sede Oficial' }}
-                                </p>
+                                <div class="flex items-center mt-1">
+                                    <p class="text-[10px] text-gray-500 font-bold uppercase flex items-center mr-3">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        {{ eq.nombre_cancha || 'Sin Sede Oficial' }}
+                                    </p>
+                                    
+                                    <span class="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest border" 
+                                          :class="eq.total_jugadores >= 5 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
+                                        {{ eq.total_jugadores || 0 }} Jugadores
+                                    </span>
+                                </div>
                             </div>
                             <button @click="handleInscribirEquipo(eq)" :disabled="procesando"
                                 class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-md shadow hover:bg-indigo-700 disabled:opacity-50 transition-colors uppercase tracking-wide">
@@ -298,7 +305,6 @@ const torneos = ref([])
 const torneoSeleccionado = ref(null)
 const equiposElegibles = ref([])
 
-// Variables para manejar la vista dividida
 const formReglamentos = ref({
     general: '',
     sanciones: '',
@@ -333,13 +339,11 @@ const volverListado = () => {
     cargarTorneos();
 }
 
-// LÓGICA REQUERIDA: Unir los 3 campos en una sola variable antes de enviar
 const guardarNuevoTorneo = async () => {
     if (new Date(form.value.fecha_inicio) > new Date(form.value.fecha_fin)) {
         return alert('Error: La fecha de inicio no puede ser posterior a la fecha de fin.')
     }
     
-    // Aquí concatenamos todo como solicitaste con saltos de línea para que se vea bien en un texto plano
     let enviarBaseDeDatos = "REGLAMENTO GENERAL:\n" + formReglamentos.value.general + 
                             "\n\nSANCIONES DISCIPLINARIAS:\n" + formReglamentos.value.sanciones + 
                             "\n\nNORMATIVAS ESPECIFICAS:\n" + formReglamentos.value.normativas;
@@ -358,7 +362,6 @@ const guardarNuevoTorneo = async () => {
     }
 }
 
-// LÓGICA REQUERIDA: Separar el texto largo de la BD en las 3 cajitas para poder editar
 const seleccionarTorneo = async (torneo) => {
     torneoSeleccionado.value = torneo
     form.value = {
@@ -367,7 +370,6 @@ const seleccionarTorneo = async (torneo) => {
         fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : ''
     }
     
-    // Tratamos de revertir la variable
     const reglaCompleta = torneo.reglamento || '';
     if (reglaCompleta.includes("REGLAMENTO GENERAL:\n")) {
         let temp = reglaCompleta.replace("REGLAMENTO GENERAL:\n", "");
@@ -380,7 +382,6 @@ const seleccionarTorneo = async (torneo) => {
             formReglamentos.value.normativas = partes2[1] || '';
         }
     } else {
-        // Si el torneo ya existía antes de este cambio, metemos todo en General
         formReglamentos.value.general = reglaCompleta;
         formReglamentos.value.sanciones = '';
         formReglamentos.value.normativas = '';
@@ -401,7 +402,14 @@ const cargarEquiposElegibles = async (id) => {
     }
 }
 
+// AQUI AGREGAMOS LA VALIDACIÓN ANTES DE INSCRIBIR
 const handleInscribirEquipo = async (equipo) => {
+    const totalJugadores = parseInt(equipo.total_jugadores || 0);
+    
+    if (totalJugadores < 5) {
+        return alert(`❌ REGLA DE COMPETICIÓN:\n\nEl equipo "${equipo.nombre_oficial}" no puede ser inscrito porque solo cuenta con ${totalJugadores} jugador(es) en su plantilla activa.\n\nEl mínimo requerido son 5 jugadores (incluyendo suplentes).`);
+    }
+
     procesando.value = true
     try {
         await inscribirEquipoService(torneoSeleccionado.value.id_torneo, equipo.id_equipo)
@@ -419,7 +427,6 @@ const handleActualizarTorneo = async () => {
         return alert('Error: La fecha de inicio no puede ser posterior a la fecha de fin.')
     }
     
-    // Volvemos a empaquetar todo al editar
     let enviarBaseDeDatos = "REGLAMENTO GENERAL:\n" + formReglamentos.value.general + 
                             "\n\nSANCIONES DISCIPLINARIAS:\n" + formReglamentos.value.sanciones + 
                             "\n\nNORMATIVAS ESPECIFICAS:\n" + formReglamentos.value.normativas;

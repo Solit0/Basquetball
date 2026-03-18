@@ -136,27 +136,19 @@ const obtenerTodosActivos = async () => {
     return rows;
 };
 const obtenerEquiposElegibles = async (id_torneo) => {
-    const torneoQuery = await pool.query(`SELECT id_clasificacion, fecha_inicio, fecha_fin FROM torneos WHERE id_torneo = $1`, [id_torneo]);
-    const { id_clasificacion, fecha_inicio, fecha_fin } = torneoQuery.rows[0];
-
+    // MODIFICADO: Ahora incluimos un sub-query que cuenta los jugadores activos de la plantilla del equipo.
     const query = `
-        SELECT e.id_equipo, e.nombre_oficial, e.siglas, c.nombre_cancha
+        SELECT e.id_equipo, e.nombre_oficial, e.siglas, c.nombre_cancha,
+               (SELECT COUNT(*) FROM plantilla_equipo pe WHERE pe.id_equipo = e.id_equipo AND pe.activo = true) AS total_jugadores
         FROM equipos e
         LEFT JOIN canchas c ON e.id_cancha = c.id_cancha
         WHERE e.activo = true 
-        AND e.id_entrenador IS NOT NULL 
-        AND e.id_clasificacion = $1
-        AND e.id_equipo NOT IN (
-            SELECT i.id_equipo FROM inscripciones i
-            JOIN torneos t ON i.id_torneo = t.id_torneo
-            WHERE t.estado NOT IN ('Cancelado', 'Finalizado')
-            AND i.estado_inscripcion = 'Aprobada'
-            -- AQUÍ CORTAMOS EL TRASLAPE
-            AND (t.fecha_inicio <= $3 AND t.fecha_fin >= $2)
-        )
-        ORDER BY e.nombre_oficial ASC;
+          AND e.id_equipo NOT IN (
+              SELECT id_equipo FROM inscripciones 
+              WHERE id_torneo = $1 AND estado_inscripcion != 'Rechazada'
+          )
     `;
-    const { rows } = await pool.query(query, [id_clasificacion, fecha_inicio, fecha_fin]);
+    const { rows } = await pool.query(query, [id_torneo]);
     return rows;
 };
 
