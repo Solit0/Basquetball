@@ -341,6 +341,7 @@ import CrearTorneo from '../views/Admin/CrearTorneo.vue'
 import GestionPartidos from '../views/Admin/GestionPartidos.vue' 
 import EditarTorneos from '../views/Admin/EditarTorneos.vue'
 import AdminPerfil from '../views/Admin/AdminPerfil.vue'
+import CalendarioPartidos from '../views/Espectadores/CalendarioPartidos.vue'
 
 import { 
     obtenerCanalesService, 
