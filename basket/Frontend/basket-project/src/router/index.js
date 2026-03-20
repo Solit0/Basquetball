@@ -9,6 +9,7 @@ import EquiposLibres from '../views/EquiposLibres.vue'
 import TorneosPublicos from '@/views/Espectadores/TorneosPublicos.vue'
 import HorariosPublicos from '@/views/Espectadores/HorariosPublicos.vue'
 import EmisionesPublicas from '@/views/Espectadores/EmisionesPublicas.vue'
+import CalendarioPartidos from '@/views/Espectadores/CalendarioPartidos.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,6 +34,11 @@ const router = createRouter({
         path: '/horarios',
         name: 'HorariosPublicos',
         component: HorariosPublicos
+    },
+    {
+        path: '/calendario',
+        name: 'CalendarioPartidos',
+        component: CalendarioPartidos
     },
     {
         path: '/emisiones',

@@ -35,6 +35,11 @@
                         :class="{ 'text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100': $route.path === '/' }">
                         Horarios de Partido
                     </router-link>
+                    <router-link to="/calendario" 
+                        class="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
+                        Calendario de Partidos
+                    </router-link>
                 </div>
 
                 <div class="hidden md:flex items-center">
@@ -83,6 +88,15 @@
                     <div class="flex items-center">
                         <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         Horarios de Partido
+                    </div>
+                </router-link>
+
+                <router-link to="/calendario" @click="isMobileMenuOpen = false" 
+                    class="block px-4 py-3 rounded-xl text-base font-bold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50"
+                    active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Calendario de Partidos
                     </div>
                 </router-link>
                 
