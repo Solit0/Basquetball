@@ -53,7 +53,7 @@
                 <div class="lg:w-2/3">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 min-h-[500px]">
                         
-                        <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
+                        <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-4">
                             <h3 class="text-xl font-black text-indigo-900 flex items-center">
                                 <svg class="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                 Programación: {{ canalSeleccionado?.nombre_canal }}
@@ -65,20 +65,42 @@
                             </a>
                         </div>
 
+                        <!-- ✅ FILTROS AGREGADOS -->
+                        <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                            <!-- Barra de búsqueda -->
+                            <div class="relative flex-1">
+                                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                <input v-model="busqueda" type="text" placeholder="Buscar por equipo o día..."
+                                    class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                            </div>
+
+                            <!-- Filtro de orden -->
+                            <select v-model="orden" class="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                                <option value="recientes">Más recientes primero</option>
+                                <option value="antiguos">Más antiguos primero</option>
+                            </select>
+
+                            <!-- Formato de hora -->
+                            <select v-model="formatoHora" class="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                                <option value="24h">Formato 24h</option>
+                                <option value="ampm">Formato AM/PM</option>
+                            </select>
+                        </div>
+
                         <div v-if="cargandoCartelera" class="text-center py-20">
                             <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             <p class="text-gray-500 font-medium">Actualizando guía de televisión...</p>
                         </div>
 
-                        <div v-else-if="cartelera.length === 0" class="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <div v-else-if="carteleraFiltrada.length === 0" class="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                             <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            <p class="text-gray-600 font-bold">Sin programación</p>
-                            <p class="text-sm text-gray-500 mt-1">Este canal no tiene partidos asignados próximamente.</p>
+                            <p class="text-gray-600 font-bold">Sin resultados</p>
+                            <p class="text-sm text-gray-500 mt-1">No se encontraron partidos con ese criterio de búsqueda.</p>
                         </div>
 
                         <div v-else class="space-y-6">
-                            <div v-for="partido in cartelera" :key="partido.id_transmision" 
-                                 class="border border-gray-200 rounded-xl p-0 overflow-hidden shadow-sm hover:shadow-md hover:indigo-300 transition-all">
+                            <div v-for="partido in carteleraFiltrada" :key="partido.id_transmision" 
+                                 class="border border-gray-200 rounded-xl p-0 overflow-hidden shadow-sm hover:shadow-md transition-all">
                                 
                                 <div class="bg-gray-100 px-5 py-3 border-b border-gray-200 flex justify-between items-center">
                                     <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">{{ partido.torneo_nombre }}</span>
@@ -111,7 +133,7 @@
                                             </span>
                                             <div>
                                                 <p class="text-[10px] font-black text-red-500 uppercase tracking-wider">La Previa Inicia</p>
-                                                <p class="text-lg font-black text-red-800">{{ partido.hora_transmision.substring(0, 5) }} hrs</p>
+                                                <p class="text-lg font-black text-red-800">{{ formatHora(partido.hora_transmision) }}</p>
                                             </div>
                                         </div>
 
@@ -119,29 +141,23 @@
                                             <svg class="w-5 h-5 mr-3 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                             <div>
                                                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider">Salto Inicial</p>
-                                                <p class="text-lg font-black text-gray-800">{{ partido.hora_partido.substring(0, 5) }} hrs</p>
+                                                <p class="text-lg font-black text-gray-800">{{ formatHora(partido.hora_partido) }}</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
-
         </main>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-
-// IMPORTAMOS EL COMPONENTE DE NAVEGACIÓN
+import { ref, computed, onMounted } from 'vue'
 import NavbarEspectador from '@/components/NavbarEspectador.vue'
-
-// Importamos los servicios del canal
 import { obtenerCanalesService, obtenerTransmisionesPorCanalService } from '@/services/canalService'
 
 const canales = ref([])
@@ -150,14 +166,16 @@ const cartelera = ref([])
 const cargando = ref(true)
 const cargandoCartelera = ref(false)
 
+// ✅ Variables de filtros
+const busqueda = ref('')
+const orden = ref('recientes')
+const formatoHora = ref('24h')
+
 onMounted(async () => {
     try {
         cargando.value = true
-        // 1. Obtenemos todos los canales
         const data = await obtenerCanalesService()
         canales.value = data
-        
-        // 2. Si hay canales, seleccionamos el primero por defecto
         if (data.length > 0) {
             seleccionarCanal(data[0])
         }
@@ -170,6 +188,7 @@ onMounted(async () => {
 
 const seleccionarCanal = async (canal) => {
     canalSeleccionado.value = canal
+    busqueda.value = '' // ✅ Limpiar búsqueda al cambiar canal
     try {
         cargandoCartelera.value = true
         cartelera.value = await obtenerTransmisionesPorCanalService(canal.id_canal)
@@ -181,12 +200,52 @@ const seleccionarCanal = async (canal) => {
     }
 }
 
+// ✅ Cartelera filtrada y ordenada
+const carteleraFiltrada = computed(() => {
+    let resultado = [...cartelera.value]
+
+    // Filtro por búsqueda (equipo o día)
+    if (busqueda.value.trim()) {
+        const texto = busqueda.value.toLowerCase()
+        resultado = resultado.filter(p => {
+            const diaFormateado = formatFecha(p.fecha).toLowerCase()
+            return (
+                p.local_nombre?.toLowerCase().includes(texto) ||
+                p.visitante_nombre?.toLowerCase().includes(texto) ||
+                diaFormateado.includes(texto)
+            )
+        })
+    }
+
+    // Ordenar por fecha y hora
+    resultado.sort((a, b) => {
+        const fechaA = new Date(`${a.fecha}T${a.hora_partido}`)
+        const fechaB = new Date(`${b.fecha}T${b.hora_partido}`)
+        return orden.value === 'recientes' ? fechaB - fechaA : fechaA - fechaB
+    })
+
+    return resultado
+})
+
+// ✅ Formato de hora consistente (24h o AM/PM)
+const formatHora = (hora) => {
+    if (!hora) return 'Por definir'
+    const [hh, mm] = hora.substring(0, 5).split(':')
+    if (formatoHora.value === 'ampm') {
+        const h = parseInt(hh)
+        const ampm = h >= 12 ? 'PM' : 'AM'
+        const hora12 = h % 12 || 12
+        return `${hora12}:${mm} ${ampm}`
+    }
+    return `${hh}:${mm} hrs`
+}
+
 const formatFecha = (fechaString) => {
-    if (!fechaString) return '';
-    const date = new Date(fechaString);
+    if (!fechaString) return ''
+    const date = new Date(fechaString)
     const offset = date.getTimezoneOffset()
     date.setMinutes(date.getMinutes() + offset)
-    return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 </script>
 
