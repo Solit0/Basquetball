@@ -1,9 +1,10 @@
 require('dotenv').config();
 const express = require('express');
-const pool = require('./db');
-const errorHandler = require('../Middleware/errorHandler');
-const app = express();
 const cors = require('cors');
+const { connectDB } = require('./db'); 
+const errorHandler = require('../Middleware/errorHandler');
+
+// Importación de rutas
 const torneosRoutes = require('../Routes/torneosRoutes');     
 const usuarioRoutes = require('../Routes/usuarioRoutes');
 const equipoRoutes = require('../Routes/equiposRoutes');      
@@ -12,7 +13,9 @@ const canalRoutes = require('../Routes/canalRoutes');
 const jugadoresRoutes = require('../Routes/jugadoresRoutes'); 
 const arbitroRoutes = require('../Routes/arbitrosRoutes');     
 const partidosRoutes = require('../Routes/partidosRoutes');
-// Middleware
+
+const app = express();
+
 app.use(cors({
     origin: 'http://localhost:5173' 
 }));
@@ -20,36 +23,37 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Rutas
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/equipos', equipoRoutes);        
 app.use('/api/canchas', canchaRoutes);        
 app.use('/api/canales', canalRoutes);          
 app.use('/api/jugadores', jugadoresRoutes);   
-app.use('/api/arbitros', arbitroRoutes);       
+app.use('/api/arbitros', arbitroRoutes);      
 app.use('/api/torneos', torneosRoutes);        
 app.use('/api/partidos', partidosRoutes);
-// Probar conexión a BD
-pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-        console.error('❌ Error al conectar a la base de datos:', err.message);
-    } else {
-        console.log('✅ Conexión a PostgreSQL exitosa');
-        console.log('📅 Hora del servidor DB:', res.rows[0].now);
-    }
-});
-
-app.use(errorHandler);
 
 app.get('/', (req, res) => {
-    res.json({ mensaje: 'Servidor funcionando correctamente' });
+    res.json({ mensaje: 'Servidor funcionando correctamente con Supabase y Drizzle' });
 });
 
-console.log('🔧 Variables de entorno:');
-console.log('- DB_USER:', process.env.DB_USER);
-console.log('- DB_HOST:', process.env.DB_HOST);
-console.log('- DB_NAME:', process.env.DB_NAME);
+// El errorHandler siempre debe ir después de las rutas
+app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-});
+// Función para arrancar la base de datos y luego el servidor
+const iniciarServidor = async () => {
+    try {
+        // Probamos la conexión a Supabase
+        await connectDB();
+
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, () => {
+            console.log(` Servidor corriendo en http://localhost:${PORT}`);
+            console.log('🔧 Entorno activo para:', process.env.DB_HOST);
+        });
+    } catch (error) {
+        console.error('No se pudo iniciar el servidor debido a un fallo en la DB:', error.message);
+    }
+};
+
+iniciarServidor();

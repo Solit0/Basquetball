@@ -1,79 +1,97 @@
-const pool = require('../Config/db');
+const { db } = require('../Config/db');
+const { canales, tipoCanal, transmisiones, partidos, torneos, equipos } = require('../models/schema');
+const { desc, eq, and, alias } = require('drizzle-orm');
 
 const obtenerTodos = async () => {
-    const query = `
-        SELECT c.id_canal, c.nombre_canal, c.url_sitio, c.numero_canal, c.horario, c.activo,
-            c.id_tipo, t.descripcion AS tipo_canal
-        FROM canales c
-        LEFT JOIN tipo_canal t ON c.id_tipo = t.id_tipo
-        ORDER BY c.id_canal DESC;
-    `;
-    const { rows } = await pool.query(query);
-    return rows;
+    const results = await db
+        .select({
+            idCanal: canales.idCanal,
+            nombreCanal: canales.nombreCanal,
+            urlSitio: canales.urlSitio,
+            numeroCanal: canales.numeroCanal,
+            horario: canales.horario,
+            activo: canales.activo,
+            idTipo: canales.idTipo,
+            tipoCanal: tipoCanal.descripcion,
+        })
+        .from(canales)
+        .leftJoin(tipoCanal, eq(canales.idTipo, tipoCanal.idTipo))
+        .orderBy(desc(canales.idCanal));
+    
+    return results;
 };
+
 const crear = async (datosCanal) => {
     const { nombre_canal, id_tipo, url_sitio, numero_canal, horario } = datosCanal;
-    const query = `
-        INSERT INTO canales (nombre_canal, id_tipo, url_sitio, numero_canal, horario)
-        VALUES ($1, $2, $3, $4, $5) 
-        RETURNING *;
-    `;
-    const values = [nombre_canal, id_tipo, url_sitio || null, numero_canal || null, horario || null];
     
-    const { rows } = await pool.query(query, values);
-    return rows[0];
+    const result = await db
+        .insert(canales)
+        .values({
+            nombreCanal: nombre_canal,
+            idTipo: id_tipo,
+            urlSitio: url_sitio || null,
+            numeroCanal: numero_canal || null,
+            horario: horario || null,
+        })
+        .returning();
+    
+    return result[0];
 };
-// ==========================================
-// MÓDULO DE TRANSMISIONES (PARRILLA)
-// ==========================================
 
-// 1. Asignar un partido a un canal
 const asignarTransmision = async (id_canal, id_partido, hora_transmision) => {
-    const query = `
-        INSERT INTO transmisiones (id_canal, id_partido, hora_transmision)
-        VALUES ($1, $2, $3)
-        RETURNING *;
-    `;
-    const { rows } = await pool.query(query, [id_canal, id_partido, hora_transmision]);
-    return rows[0];
+    const result = await db
+        .insert(transmisiones)
+        .values({
+            idCanal: id_canal,
+            idPartido: id_partido,
+            horaTransmision: hora_transmision,
+        })
+        .returning();
+    
+    return result[0];
 };
 
-// 2. Obtener la cartelera de un canal específico
 const obtenerTransmisionesPorCanal = async (id_canal) => {
-    const query = `
-        SELECT 
-            tr.id_transmision,
-            tr.id_canal,
-            tr.id_partido,
-            tr.hora_transmision,
-            p.fecha,
-            p.hora AS hora_partido,
-            t.nombre_torneo AS torneo_nombre,
-            el.nombre_oficial AS local_nombre,
-            ev.nombre_oficial AS visitante_nombre,
-            CONCAT(el.nombre_oficial, ' vs ', ev.nombre_oficial) AS encuentro
-        FROM transmisiones tr
-        JOIN partidos p ON tr.id_partido = p.id_partido
-        JOIN torneos t ON p.id_torneo = t.id_torneo
-        JOIN equipos el ON p.id_equipo_local = el.id_equipo
-        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
-        WHERE tr.id_canal = $1
-        ORDER BY p.fecha ASC, tr.hora_transmision ASC;
-    `;
-    const { rows } = await pool.query(query, [id_canal]);
-    return rows;
+    const equiposLocal = alias(equipos, 'equiposLocal');
+    const equiposVisitante = alias(equipos, 'equiposVisitante');
+    
+    const results = await db
+        .select({
+            idTransmision: transmisiones.idTransmision,
+            idCanal: transmisiones.idCanal,
+            idPartido: transmisiones.idPartido,
+            horaTransmision: transmisiones.horaTransmision,
+            fecha: partidos.fecha,
+            horaPartido: partidos.hora,
+            torneoNombre: torneos.nombreTorneo,
+            localNombre: equiposLocal.nombreOficial,
+            visitanteNombre: equiposVisitante.nombreOficial,
+        })
+        .from(transmisiones)
+        .innerJoin(partidos, eq(transmisiones.idPartido, partidos.idPartido))
+        .innerJoin(torneos, eq(partidos.idTorneo, torneos.idTorneo))
+        .innerJoin(equiposLocal, eq(partidos.idEquipoLocal, equiposLocal.idEquipo))
+        .innerJoin(equiposVisitante, eq(partidos.idEquipoVisitante, equiposVisitante.idEquipo))
+        .where(eq(transmisiones.idCanal, id_canal))
+        .orderBy(partidos.fecha, transmisiones.horaTransmision);
+    
+    // Construir el encuentro en post-procesamiento
+    return results.map(row => ({
+        ...row,
+        encuentro: `${row.localNombre} vs ${row.visitanteNombre}`
+    }));
 };
 
-// 3. Quitar un partido de la transmisión
 const eliminarTransmision = async (id_transmision) => {
-    const query = `DELETE FROM transmisiones WHERE id_transmision = $1 RETURNING *`;
-    const { rows } = await pool.query(query, [id_transmision]);
-    if (rows.length === 0) throw new Error("Transmisión no encontrada");
-    return rows[0];
+    const result = await db
+        .delete(transmisiones)
+        .where(eq(transmisiones.idTransmision, id_transmision))
+        .returning();
+    
+    if (result.length === 0) throw new Error("Transmisión no encontrada");
+    return result[0];
 };
 
-// Asegúrate de exportar estas 3 funciones al final de tu archivo
-// module.exports = { ..., asignarTransmision, obtenerTransmisionesPorCanal, eliminarTransmision };
 module.exports = {
     obtenerTodos,
     crear,
