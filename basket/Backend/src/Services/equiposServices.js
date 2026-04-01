@@ -1,221 +1,300 @@
-const pool = require('../Config/db');
+const { db } = require('../Config/db');
+const schema = require('../models/schema');
+const { eq, and, ne, isNull, asc, sql } = require('drizzle-orm');
 
 const obtenerTodos = async () => {
-    const query = `
-        SELECT e.id_equipo, e.nombre_oficial, e.siglas, cl.descripcion AS clasificacion, 
-            c.nombre_cancha, c.direccion AS direccion_cancha, e.id_entrenador, e.activo
-        FROM equipos e
-        LEFT JOIN clasificacion_equipo cl ON e.id_clasificacion = cl.id_clasificacion
-        LEFT JOIN canchas c ON e.id_cancha = c.id_cancha
-        ORDER BY e.nombre_oficial ASC;
-    `;
-    const { rows } = await pool.query(query);
+    const rows = await db.select({
+        id_equipo: schema.equipos.idEquipo,
+        nombre_oficial: schema.equipos.nombreOficial,
+        siglas: schema.equipos.siglas,
+        clasificacion: schema.clasificacionEquipo.descripcion,
+        nombre_cancha: schema.canchas.nombreCancha,
+        direccion_cancha: schema.canchas.direccion,
+        id_entrenador: schema.equipos.idEntrenador,
+        activo: schema.equipos.activo
+    })
+    .from(schema.equipos)
+    .leftJoin(schema.clasificacionEquipo, eq(schema.equipos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
+    .leftJoin(schema.canchas, eq(schema.equipos.idCancha, schema.canchas.idCancha))
+    .orderBy(asc(schema.equipos.nombreOficial));
+    
     return rows;
 };
+
 const obtenerJugadoresPorEquipo = async (id_equipo) => {
-    const query = `
-        SELECT 
-            j.id_jugador, 
-            j.nombre, 
-            j.apellido, 
-            p.numero_camiseta, 
-            p.es_capitan
-        FROM jugadores j
-        JOIN plantilla_equipo p ON j.id_jugador = p.id_jugador
-        WHERE p.id_equipo = $1 AND p.activo = true
-        ORDER BY p.numero_camiseta ASC;
-    `;
-    const { rows } = await pool.query(query, [id_equipo]);
+    const rows = await db.select({
+        id_jugador: schema.jugadores.idJugador,
+        nombre: schema.jugadores.nombre,
+        apellido: schema.jugadores.apellido,
+        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
+        es_capitan: schema.plantillaEquipo.esCapitan
+    })
+    .from(schema.jugadores)
+    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+    .where(
+        and(
+            eq(schema.plantillaEquipo.idEquipo, id_equipo),
+            eq(schema.plantillaEquipo.activo, true)
+        )
+    )
+    .orderBy(asc(schema.plantillaEquipo.numeroCamiseta));
+
     return rows;
 };
+
 const obtenerPorId = async (id_equipo) => {
-    const query = `
-        SELECT e.*, cl.descripcion AS clasificacion, 
-            c.nombre_cancha, c.direccion AS direccion_cancha, c.capacidad AS capacidad_cancha,
-            u.nombre || ' ' || u.apellido AS entrenador_nombre
-        FROM equipos e
-        LEFT JOIN clasificacion_equipo cl ON e.id_clasificacion = cl.id_clasificacion
-        LEFT JOIN canchas c ON e.id_cancha = c.id_cancha
-        LEFT JOIN usuarios u ON e.id_entrenador = u.id_usuario
-        WHERE e.id_equipo = $1;
-    `;
-    const { rows } = await pool.query(query, [id_equipo]);
-    return rows[0];
+    const rows = await db.select({
+        id_equipo: schema.equipos.idEquipo,
+        nombre_oficial: schema.equipos.nombreOficial,
+        siglas: schema.equipos.siglas,
+        id_clasificacion: schema.equipos.idClasificacion,
+        id_entrenador: schema.equipos.idEntrenador,
+        id_cancha: schema.equipos.idCancha,
+        activo: schema.equipos.activo,
+        clasificacion: schema.clasificacionEquipo.descripcion,
+        nombre_cancha: schema.canchas.nombreCancha,
+        direccion_cancha: schema.canchas.direccion,
+        capacidad_cancha: schema.canchas.capacidad,
+        entrenador_nombre: sql`CONCAT(${schema.usuarios.nombre}, ' ', ${schema.usuarios.apellido})`.as('entrenador_nombre')
+    })
+    .from(schema.equipos)
+    .leftJoin(schema.clasificacionEquipo, eq(schema.equipos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
+    .leftJoin(schema.canchas, eq(schema.equipos.idCancha, schema.canchas.idCancha))
+    .leftJoin(schema.usuarios, eq(schema.equipos.idEntrenador, schema.usuarios.idUsuario))
+    .where(eq(schema.equipos.idEquipo, id_equipo))
+    .limit(1);
+
+    return rows[0] || null;
 };
 
 const obtenerPorEntrenador = async (id_entrenador) => {
-    const query = `
-        SELECT e.*, cl.descripcion AS clasificacion, 
-            c.nombre_cancha, c.direccion AS direccion_cancha, c.capacidad AS capacidad_cancha
-        FROM equipos e
-        LEFT JOIN clasificacion_equipo cl ON e.id_clasificacion = cl.id_clasificacion
-        LEFT JOIN canchas c ON e.id_cancha = c.id_cancha
-        WHERE e.id_entrenador = $1
-        LIMIT 1;
-    `;
-    const { rows } = await pool.query(query, [id_entrenador]);
-    return rows[0];
+    const rows = await db.select({
+        id_equipo: schema.equipos.idEquipo,
+        nombre_oficial: schema.equipos.nombreOficial,
+        siglas: schema.equipos.siglas,
+        id_clasificacion: schema.equipos.idClasificacion,
+        id_entrenador: schema.equipos.idEntrenador,
+        id_cancha: schema.equipos.idCancha,
+        activo: schema.equipos.activo,
+        clasificacion: schema.clasificacionEquipo.descripcion,
+        nombre_cancha: schema.canchas.nombreCancha,
+        direccion_cancha: schema.canchas.direccion,
+        capacidad_cancha: schema.canchas.capacidad
+    })
+    .from(schema.equipos)
+    .leftJoin(schema.clasificacionEquipo, eq(schema.equipos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
+    .leftJoin(schema.canchas, eq(schema.equipos.idCancha, schema.canchas.idCancha))
+    .where(eq(schema.equipos.idEntrenador, id_entrenador))
+    .limit(1);
+
+    return rows[0] || null;
 };
 
 const crear = async (datosEquipo) => {
     const { nombre_oficial, siglas, id_clasificacion, id_entrenador, id_cancha, nueva_cancha } = datosEquipo;
-    const client = await pool.connect();
     
-    try {
-        await client.query('BEGIN');
+    return await db.transaction(async (tx) => {
+        const clasificacionDb = await tx.select({ id: schema.clasificacionEquipo.idClasificacion })
+            .from(schema.clasificacionEquipo)
+            .where(eq(schema.clasificacionEquipo.descripcion, id_clasificacion))
+            .limit(1);
+        if (clasificacionDb.length === 0) {
+            throw new Error(`La clasificación '${id_clasificacion}' no existe.`);
+        }
+        const uuid_clasificacion_real = clasificacionDb[0].id;
         let canchaAsignadaId = id_cancha;
 
         if (!canchaAsignadaId && nueva_cancha) {
-            const insertCanchaQuery = `
-                INSERT INTO canchas (nombre_cancha, direccion, capacidad)
-                VALUES ($1, $2, $3) RETURNING id_cancha;
-            `;
-            const { rows: canchaRows } = await client.query(insertCanchaQuery, [
-                nueva_cancha.nombre, 
-                nueva_cancha.direccion, 
-                nueva_cancha.capacidad || null
-            ]);
-            canchaAsignadaId = canchaRows[0].id_cancha;
+            const [nueva] = await tx.insert(schema.canchas)
+                .values({
+                    nombreCancha: nueva_cancha.nombre,
+                    direccion: nueva_cancha.direccion,
+                    capacidad: nueva_cancha.capacidad || null
+                })
+                .returning({ id_cancha: schema.canchas.idCancha });
+                
+            canchaAsignadaId = nueva.id_cancha;
         }
 
-        const insertEquipoQuery = `
-            INSERT INTO equipos (nombre_oficial, siglas, id_clasificacion, id_cancha, id_entrenador)
-            VALUES ($1, $2, $3, $4, $5) 
-            RETURNING *;
-        `;
-        const { rows: equipoRows } = await client.query(insertEquipoQuery, [
-            nombre_oficial, siglas, id_clasificacion, canchaAsignadaId, id_entrenador
-        ]);
+        // 3. CREAR EQUIPO
+        const [nuevoEquipo] = await tx.insert(schema.equipos)
+            .values({
+                nombreOficial: nombre_oficial,
+                siglas: siglas,
+                idClasificacion: uuid_clasificacion_real, 
+                idCancha: canchaAsignadaId,
+                idEntrenador: id_entrenador || null
+            })
+            .returning();
 
-        await client.query('COMMIT');
-        return equipoRows[0];
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
+        return nuevoEquipo;
+    });
 };
+
 const actualizar = async (id_equipo, datosEquipo) => {
     const { 
         nombre_oficial, siglas, id_clasificacion, 
         id_cancha, nombre_cancha, direccion_cancha, capacidad_cancha 
     } = datosEquipo;
     
-    const client = await pool.connect();
-
     try {
-        await client.query('BEGIN');
-        
-        let canchaFinalId = id_cancha;
+        return await db.transaction(async (tx) => {
+            let canchaFinalId = id_cancha;
+            if (id_cancha && direccion_cancha) {
+                const duplicateCheck = await tx.select({ id: schema.canchas.idCancha })
+                    .from(schema.canchas)
+                    .where(
+                        and(
+                            eq(schema.canchas.direccion, direccion_cancha),
+                            ne(schema.canchas.idCancha, id_cancha)
+                        )
+                    );
+                
+                if (duplicateCheck.length > 0) throw new Error('DIRECCION_REPETIDA: Ya existe otra sede deportiva registrada exactamente con esa misma dirección.');
 
-        // CASO A: Ya tenía una cancha, la actualizamos
-        if (id_cancha && direccion_cancha) {
-            const duplicateCheck = await client.query(
-                `SELECT id_cancha FROM canchas WHERE direccion = $1 AND id_cancha != $2`,
-                [direccion_cancha, id_cancha]
-            );
-            if (duplicateCheck.rows.length > 0) throw new Error('DIRECCION_REPETIDA: Ya existe otra sede deportiva registrada exactamente con esa misma dirección.');
+                const updateCanchaData = {};
+                if (nombre_cancha !== undefined) updateCanchaData.nombreCancha = nombre_cancha;
+                if (direccion_cancha !== undefined) updateCanchaData.direccion = direccion_cancha;
+                if (capacidad_cancha !== undefined) updateCanchaData.capacidad = capacidad_cancha || null;
 
-            await client.query(`
-                UPDATE canchas 
-                SET nombre_cancha = COALESCE($1, nombre_cancha),
-                    direccion = COALESCE($2, direccion),
-                    capacidad = COALESCE($3, capacidad)
-                WHERE id_cancha = $4
-            `, [nombre_cancha, direccion_cancha, capacidad_cancha || null, id_cancha]);
-        } 
-        // CASO B: No tenía cancha, creamos una nueva y se la asignamos
-        else if (!id_cancha && direccion_cancha) {
-            const duplicateCheck = await client.query(`SELECT id_cancha FROM canchas WHERE direccion = $1`, [direccion_cancha]);
-            if (duplicateCheck.rows.length > 0) throw new Error('DIRECCION_REPETIDA: Ya existe otra sede deportiva registrada exactamente con esa misma dirección.');
+                if (Object.keys(updateCanchaData).length > 0) {
+                    await tx.update(schema.canchas)
+                        .set(updateCanchaData)
+                        .where(eq(schema.canchas.idCancha, id_cancha));
+                }
+            } 
+            else if (!id_cancha && direccion_cancha) {
+                const duplicateCheck = await tx.select({ id: schema.canchas.idCancha })
+                    .from(schema.canchas)
+                    .where(eq(schema.canchas.direccion, direccion_cancha));
+                
+                if (duplicateCheck.length > 0) throw new Error('DIRECCION_REPETIDA: Ya existe otra sede deportiva registrada exactamente con esa misma dirección.');
 
-            const { rows: nuevaCancha } = await client.query(`
-                INSERT INTO canchas (nombre_cancha, direccion, capacidad)
-                VALUES ($1, $2, $3) RETURNING id_cancha;
-            `, [nombre_cancha, direccion_cancha, capacidad_cancha || null]);
-            
-            canchaFinalId = nuevaCancha[0].id_cancha;
-        }
+                const [nuevaCancha] = await tx.insert(schema.canchas)
+                    .values({
+                        nombreCancha: nombre_cancha,
+                        direccion: direccion_cancha,
+                        capacidad: capacidad_cancha || null
+                    })
+                    .returning({ id_cancha: schema.canchas.idCancha });
+                
+                canchaFinalId = nuevaCancha.id_cancha;
+            }
 
-        // 2. Actualizar la información del Equipo
-        const queryEquipo = `
-            UPDATE equipos 
-            SET nombre_oficial = COALESCE($1, nombre_oficial),
-                siglas = COALESCE($2, siglas),
-                id_clasificacion = COALESCE($3, id_clasificacion),
-                id_cancha = COALESCE($4, id_cancha)
-            WHERE id_equipo = $5
-            RETURNING *;
-        `;
-        const { rows } = await client.query(queryEquipo, [nombre_oficial, siglas, id_clasificacion, canchaFinalId, id_equipo]);
+            let uuid_clasificacion_real = undefined;
+            if (id_clasificacion) {
+                const clasificacionDb = await tx.select({ id: schema.clasificacionEquipo.idClasificacion })
+                    .from(schema.clasificacionEquipo)
+                    .where(eq(schema.clasificacionEquipo.descripcion, id_clasificacion))
+                    .limit(1);
 
-        await client.query('COMMIT');
-        return rows[0];
+                if (clasificacionDb.length > 0) {
+                    uuid_clasificacion_real = clasificacionDb[0].id;
+                }
+            }
+
+            const updateEquipoData = {};
+            if (nombre_oficial !== undefined) updateEquipoData.nombreOficial = nombre_oficial;
+            if (siglas !== undefined) updateEquipoData.siglas = siglas;
+            if (uuid_clasificacion_real !== undefined) updateEquipoData.idClasificacion = uuid_clasificacion_real;
+            if (canchaFinalId !== undefined) updateEquipoData.idCancha = canchaFinalId;
+
+            const [equipoActualizado] = await tx.update(schema.equipos)
+                .set(updateEquipoData)
+                .where(eq(schema.equipos.idEquipo, id_equipo))
+                .returning();
+
+            return equipoActualizado;
+        });
     } catch (error) {
-        await client.query('ROLLBACK');
         if (error.code === '23505') throw new Error('El nombre oficial del equipo o sus siglas ya están siendo utilizados.');
         throw error;
-    } finally {
-        client.release();
     }
 };
 
 const cambiarEstado = async (id_equipo, activo) => {
-    const query = `UPDATE equipos SET activo = $1 WHERE id_equipo = $2 RETURNING *;`;
-    const { rows } = await pool.query(query, [activo, id_equipo]);
+    const rows = await db.update(schema.equipos)
+        .set({ activo: activo })
+        .where(eq(schema.equipos.idEquipo, id_equipo))
+        .returning();
+        
     return rows[0];
 };
 
 const eliminar = async (id_equipo) => {
-    const query = `UPDATE equipos SET activo = false WHERE id_equipo = $1 RETURNING *;`;
-    const { rows } = await pool.query(query, [id_equipo]);
+    const rows = await db.update(schema.equipos)
+        .set({ activo: false })
+        .where(eq(schema.equipos.idEquipo, id_equipo))
+        .returning();
+        
     return rows[0];
 };
 
 const obtenerEstadisticas = async (id_equipo) => {
-    const query = `
-        SELECT 
-            COUNT(DISTINCT pe.id_jugador) as jugadores_activos,
-            COUNT(DISTINCT p.id_partido) as partidos_jugados,
-            COUNT(DISTINCT CASE WHEN p.marcador_local > p.marcador_visitante AND p.id_equipo_local = $1 THEN 1
-                                WHEN p.marcador_visitante > p.marcador_local AND p.id_equipo_visitante = $1 THEN 1 END) as victorias
-        FROM equipos e
-        LEFT JOIN plantilla_equipo pe ON e.id_equipo = pe.id_equipo AND pe.activo = true
-        LEFT JOIN partidos p ON (e.id_equipo = p.id_equipo_local OR e.id_equipo = p.id_equipo_visitante) 
-            AND p.estado = 'Finalizado'
-        WHERE e.id_equipo = $1
-        GROUP BY e.id_equipo;
-    `;
-    const { rows } = await pool.query(query, [id_equipo]);
+    const rows = await db.select({
+        jugadores_activos: sql`COUNT(DISTINCT ${schema.plantillaEquipo.idJugador})::int`,
+        partidos_jugados: sql`COUNT(DISTINCT ${schema.partidos.idPartido})::int`,
+        victorias: sql`COUNT(DISTINCT CASE 
+            WHEN ${schema.partidos.marcadorLocal} > ${schema.partidos.marcadorVisitante} AND ${schema.partidos.idEquipoLocal} = ${id_equipo} THEN 1
+            WHEN ${schema.partidos.marcadorVisitante} > ${schema.partidos.marcadorLocal} AND ${schema.partidos.idEquipoVisitante} = ${id_equipo} THEN 1 
+        END)::int`
+    })
+    .from(schema.equipos)
+    .leftJoin(schema.plantillaEquipo, and(
+        eq(schema.equipos.idEquipo, schema.plantillaEquipo.idEquipo),
+        eq(schema.plantillaEquipo.activo, true)
+    ))
+    .leftJoin(schema.partidos, and(
+        sql`(${schema.equipos.idEquipo} = ${schema.partidos.idEquipoLocal} OR ${schema.equipos.idEquipo} = ${schema.partidos.idEquipoVisitante})`,
+        eq(schema.partidos.estado, 'Finalizado')
+    ))
+    .where(eq(schema.equipos.idEquipo, id_equipo))
+    .groupBy(schema.equipos.idEquipo);
+
     return rows[0] || { jugadores_activos: 0, partidos_jugados: 0, victorias: 0 };
 };
 
 const obtenerEquiposLibres = async () => {
-    const query = `
-        SELECT e.id_equipo, e.nombre_oficial, e.siglas, cl.descripcion AS clasificacion, 
-            c.nombre_cancha, c.direccion AS direccion_cancha
-        FROM equipos e
-        LEFT JOIN clasificacion_equipo cl ON e.id_clasificacion = cl.id_clasificacion
-        LEFT JOIN canchas c ON e.id_cancha = c.id_cancha
-        WHERE e.id_entrenador IS NULL AND e.activo = true
-        ORDER BY e.nombre_oficial ASC;
-    `;
-    const { rows } = await pool.query(query);
+    const rows = await db.select({
+        id_equipo: schema.equipos.idEquipo,
+        nombre_oficial: schema.equipos.nombreOficial,
+        siglas: schema.equipos.siglas,
+        clasificacion: schema.clasificacionEquipo.descripcion,
+        nombre_cancha: schema.canchas.nombreCancha,
+        direccion_cancha: schema.canchas.direccion
+    })
+    .from(schema.equipos)
+    .leftJoin(schema.clasificacionEquipo, eq(schema.equipos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
+    .leftJoin(schema.canchas, eq(schema.equipos.idCancha, schema.canchas.idCancha))
+    .where(
+        and(
+            isNull(schema.equipos.idEntrenador),
+            eq(schema.equipos.activo, true)
+        )
+    )
+    .orderBy(asc(schema.equipos.nombreOficial));
+
     return rows;
 };
 
 const abandonarEquipo = async (id_equipo) => {
-    const query = `UPDATE equipos SET id_entrenador = NULL WHERE id_equipo = $1 RETURNING *;`;
-    const { rows } = await pool.query(query, [id_equipo]);
+    const rows = await db.update(schema.equipos)
+        .set({ idEntrenador: null })
+        .where(eq(schema.equipos.idEquipo, id_equipo))
+        .returning();
+        
     return rows[0];
 };
 
 const unirseEquipo = async (id_equipo, id_entrenador) => {
-    const query = `UPDATE equipos SET id_entrenador = $1 WHERE id_equipo = $2 RETURNING *;`;
-    const { rows } = await pool.query(query, [id_entrenador, id_equipo]);
+    const rows = await db.update(schema.equipos)
+        .set({ idEntrenador: id_entrenador })
+        .where(eq(schema.equipos.idEquipo, id_equipo))
+        .returning();
+        
     return rows[0];
 };
+
 module.exports = {
     obtenerTodos, obtenerPorId, obtenerPorEntrenador, crear, actualizar,
     cambiarEstado, eliminar, obtenerEstadisticas, obtenerEquiposLibres,

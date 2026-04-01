@@ -1,18 +1,25 @@
-const pool = require('../Config/db');
+const { db } = require('../Config/db');
+const schema = require('../models/schema');
+const { eq, and, or, desc, asc, sql } = require('drizzle-orm');
+const { alias } = require('drizzle-orm/pg-core');
 
 const crearMultiples = async (partidos) => {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const resultados = [];
-        
-        if (partidos.length === 0) return [];
+    if (partidos.length === 0) return [];
 
+    return await db.transaction(async (tx) => {
+        const resultados = [];
         const idTorneo = partidos[0].id_torneo;
-        const torneoQuery = await client.query(`SELECT fecha_inicio, fecha_fin FROM torneos WHERE id_torneo = $1`, [idTorneo]);
-        if (torneoQuery.rows.length === 0) throw new Error('El torneo no existe.');
         
-        const { fecha_inicio, fecha_fin } = torneoQuery.rows[0];
+        const torneoInfo = await tx.select({
+            fecha_inicio: schema.torneos.fechaInicio,
+            fecha_fin: schema.torneos.fechaFin
+        })
+        .from(schema.torneos)
+        .where(eq(schema.torneos.idTorneo, idTorneo));
+
+        if (torneoInfo.length === 0) throw new Error('El torneo no existe.');
+        
+        const { fecha_inicio, fecha_fin } = torneoInfo[0];
 
         const formatYYYYMMDD = (d) => {
             const date = new Date(d);
@@ -36,69 +43,105 @@ const crearMultiples = async (partidos) => {
             if (p.fecha < limiteInicio || p.fecha > limiteFin) {
                 throw new Error(`REGLA_TORNEO: La fecha elegida (${p.fecha}) para ${p.local_nombre} vs ${p.visitante_nombre} está fuera del rango (${limiteInicio} al ${limiteFin}).`);
             }
-            const query = `
-                INSERT INTO partidos (id_torneo, id_equipo_local, id_equipo_visitante, id_cancha, fecha, hora, ronda_torneo, id_arbitro_principal)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
-            `;
-            const values = [p.id_torneo, p.id_equipo_local, p.id_equipo_visitante, p.id_cancha, p.fecha, p.hora, p.ronda_torneo, p.id_arbitro_principal];
-            const { rows } = await client.query(query, values);
-            resultados.push(rows[0]);
+            
+            const [nuevoPartido] = await tx.insert(schema.partidos)
+                .values({
+                    idTorneo: p.id_torneo,
+                    idEquipoLocal: p.id_equipo_local,
+                    idEquipoVisitante: p.id_equipo_visitante,
+                    idCancha: p.id_cancha,
+                    fecha: p.fecha,
+                    hora: p.hora,
+                    rondaTorneo: p.ronda_torneo,
+                    idArbitroPrincipal: p.id_arbitro_principal
+                })
+                .returning();
+                
+            resultados.push(nuevoPartido);
         }
         
-        await client.query(`UPDATE torneos SET estado = 'En curso' WHERE id_torneo = $1`, [idTorneo]);
+        await tx.update(schema.torneos)
+            .set({ estado: 'En curso' })
+            .where(eq(schema.torneos.idTorneo, idTorneo));
 
-        await client.query('COMMIT');
         return resultados;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
 
 const obtenerPorTorneo = async (id_torneo) => {
-    const query = `
-        SELECT p.*,
-               el.nombre_oficial as local_nombre, el.siglas as local_siglas,
-               ev.nombre_oficial as visitante_nombre, ev.siglas as visitante_siglas,
-               c.nombre_cancha
-        FROM partidos p
-        JOIN equipos el ON p.id_equipo_local = el.id_equipo
-        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
-        JOIN canchas c ON p.id_cancha = c.id_cancha
-        WHERE p.id_torneo = $1
-        ORDER BY p.fecha ASC, p.hora ASC;
-    `;
-    const { rows } = await pool.query(query, [id_torneo]);
+    const equipoLocal = alias(schema.equipos, 'equipo_local');
+    const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
+
+    const rows = await db.select({
+        id_partido: schema.partidos.idPartido,
+        id_torneo: schema.partidos.idTorneo,
+        id_equipo_local: schema.partidos.idEquipoLocal,
+        id_equipo_visitante: schema.partidos.idEquipoVisitante,
+        id_cancha: schema.partidos.idCancha,
+        id_arbitro_principal: schema.partidos.idArbitroPrincipal,
+        fecha: schema.partidos.fecha,
+        hora: schema.partidos.hora,
+        ronda_torneo: schema.partidos.rondaTorneo,
+        estado: schema.partidos.estado,
+        marcador_local: schema.partidos.marcadorLocal,
+        marcador_visitante: schema.partidos.marcadorVisitante,
+        local_nombre: equipoLocal.nombreOficial,
+        local_siglas: equipoLocal.siglas,
+        visitante_nombre: equipoVisitante.nombreOficial,
+        visitante_siglas: equipoVisitante.siglas,
+        nombre_cancha: schema.canchas.nombreCancha
+    })
+    .from(schema.partidos)
+    .innerJoin(equipoLocal, eq(schema.partidos.idEquipoLocal, equipoLocal.idEquipo))
+    .innerJoin(equipoVisitante, eq(schema.partidos.idEquipoVisitante, equipoVisitante.idEquipo))
+    .innerJoin(schema.canchas, eq(schema.partidos.idCancha, schema.canchas.idCancha))
+    .where(eq(schema.partidos.idTorneo, id_torneo))
+    .orderBy(asc(schema.partidos.fecha), asc(schema.partidos.hora));
+
     return rows;
 };
+
 const obtenerResumenPartido = async (id_partido) => {
-    const queryPuntos = `
-        SELECT ep.puntos_anotados, j.nombre, j.apellido, pe.id_equipo, pe.numero_camiseta
-        FROM estadisticas_partido ep
-        JOIN jugadores j ON ep.id_jugador = j.id_jugador
-        JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador
-        WHERE ep.id_partido = $1
-        ORDER BY ep.puntos_anotados DESC;
-    `;
-    const resPuntos = await pool.query(queryPuntos, [id_partido]);
-    const querySanciones = `
-        SELECT s.tipo_sancion, s.motivo, s.fecha_fin, j.nombre, j.apellido, pe.numero_camiseta, pe.id_equipo
-        FROM sanciones s
-        JOIN jugadores j ON s.id_jugador = j.id_jugador
-        JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador
-        WHERE s.id_partido = $1;
-    `;
-    const resSanciones = await pool.query(querySanciones, [id_partido]);
-    const queryInforme = `SELECT contenido FROM informes_partido WHERE id_partido = $1;`;
-    const resInforme = await pool.query(queryInforme, [id_partido]);
+
+    const resPuntos = await db.select({
+        puntos_anotados: schema.estadisticasPartido.puntosAnotados,
+        nombre: schema.jugadores.nombre,
+        apellido: schema.jugadores.apellido,
+        id_equipo: schema.plantillaEquipo.idEquipo,
+        numero_camiseta: schema.plantillaEquipo.numeroCamiseta
+    })
+    .from(schema.estadisticasPartido)
+    .innerJoin(schema.jugadores, eq(schema.estadisticasPartido.idJugador, schema.jugadores.idJugador))
+    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+    .where(eq(schema.estadisticasPartido.idPartido, id_partido))
+    .orderBy(desc(schema.estadisticasPartido.puntosAnotados));
+
+    const resSanciones = await db.select({
+        tipo_sancion: schema.sanciones.tipoSancion,
+        motivo: schema.sanciones.motivo,
+        fecha_fin: schema.sanciones.fechaFin,
+        nombre: schema.jugadores.nombre,
+        apellido: schema.jugadores.apellido,
+        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
+        id_equipo: schema.plantillaEquipo.idEquipo
+    })
+    .from(schema.sanciones)
+    .innerJoin(schema.jugadores, eq(schema.sanciones.idJugador, schema.jugadores.idJugador))
+    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+    .where(eq(schema.sanciones.idPartido, id_partido));
+
+    const resInforme = await db.select({ contenido: schema.informesPartido.contenido })
+        .from(schema.informesPartido)
+        .where(eq(schema.informesPartido.idPartido, id_partido))
+        .limit(1);
+
     return {
-        anotaciones: resPuntos.rows,
-        sanciones: resSanciones.rows,
-        informe: resInforme.rows.length > 0 ? resInforme.rows[0].contenido : 'No se redactó informe.'
+        anotaciones: resPuntos,
+        sanciones: resSanciones,
+        informe: resInforme.length > 0 ? resInforme[0].contenido : 'No se redactó informe.'
     };
 };
+
 const finalizarPartido = async (id_partido, datosResultado) => {
     const { 
         marcador_local, marcador_visitante, id_arbitro, 
@@ -106,198 +149,254 @@ const finalizarPartido = async (id_partido, datosResultado) => {
         id_torneo, id_equipo_local, id_equipo_visitante
     } = datosResultado;
 
-    const client = await pool.connect();
-    
-    try {
-        await client.query('BEGIN'); 
+    return await db.transaction(async (tx) => {
 
-        await client.query(`
-            UPDATE partidos 
-            SET marcador_local = $1, marcador_visitante = $2, 
-                id_arbitro_principal = $3, estado = 'Finalizado'
-            WHERE id_partido = $4
-        `, [marcador_local, marcador_visitante, id_arbitro, id_partido]);
+        await tx.update(schema.partidos)
+            .set({
+                marcadorLocal: marcador_local,
+                marcadorVisitante: marcador_visitante,
+                idArbitroPrincipal: id_arbitro,
+                estado: 'Finalizado'
+            })
+            .where(eq(schema.partidos.idPartido, id_partido));
 
         const id_perdedor = marcador_local < marcador_visitante ? id_equipo_local : id_equipo_visitante;
-        
-        await client.query(`
-            UPDATE inscripciones 
-            SET estado_inscripcion = 'Eliminado' 
-            WHERE id_torneo = $1 AND id_equipo = $2
-        `, [id_torneo, id_perdedor]);
+        await tx.update(schema.inscripciones)
+            .set({ estadoInscripcion: 'Eliminado' })
+            .where(
+                and(
+                    eq(schema.inscripciones.idTorneo, id_torneo),
+                    eq(schema.inscripciones.idEquipo, id_perdedor)
+                )
+            );
 
-        // 3. Crear el Informe Arbitral
-        const resInforme = await client.query(`
-            INSERT INTO informes_partido (id_partido, id_arbitro, contenido, enviado)
-            VALUES ($1, $2, $3, TRUE) RETURNING id_informe;
-        `, [id_partido, id_arbitro, informe_contenido]);
-        const id_informe = resInforme.rows[0].id_informe;
+        const [nuevoInforme] = await tx.insert(schema.informesPartido)
+            .values({
+                idPartido: id_partido,
+                idArbitro: id_arbitro,
+                contenido: informe_contenido,
+                enviado: true
+            })
+            .returning({ id_informe: schema.informesPartido.idInforme });
+            
+        const id_informe = nuevoInforme.id_informe;
 
-        // 4. Registrar Incidentes (Si hay)
         if (incidentes && incidentes.length > 0) {
-            for (const inc of incidentes) {
-                await client.query(`
-                    INSERT INTO incidentes (id_informe, tipo_incidente, minuto_aprox, descripcion_breve)
-                    VALUES ($1, $2, $3, $4)
-                `, [id_informe, inc.tipo_incidente, inc.minuto_aprox, inc.descripcion_breve]);
-            }
+            const incidentesData = incidentes.map(inc => ({
+                idInforme: id_informe,
+                tipoIncidente: inc.tipo_incidente,
+                minutoAprox: inc.minuto_aprox,
+                descripcionBreve: inc.descripcion_breve
+            }));
+            await tx.insert(schema.incidentes).values(incidentesData);
         }
 
+        // 5. Registrar Sanciones (Bulk Insert)
         if (sanciones && sanciones.length > 0) {
-            for (const san of sanciones) {
-                await client.query(`
-                    INSERT INTO sanciones (id_jugador, id_torneo, id_partido, motivo, fecha_inicio, fecha_fin, tipo_sancion)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                `, [san.id_jugador, id_torneo, id_partido, san.motivo, san.fecha_inicio, san.fecha_fin, san.tipo_sancion]);
-            }
+            const sancionesData = sanciones.map(san => ({
+                idJugador: san.id_jugador,
+                idTorneo: id_torneo,
+                idPartido: id_partido,
+                motivo: san.motivo,
+                fechaInicio: san.fecha_inicio,
+                fechaFin: san.fecha_fin,
+                tipoSancion: san.tipo_sancion
+            }));
+            await tx.insert(schema.sanciones).values(sancionesData);
         }
 
         if (puntos_jugadores && puntos_jugadores.length > 0) {
-            for (const pj of puntos_jugadores) {
-                if (pj.puntos > 0) {
-                    await client.query(`
-                        INSERT INTO estadisticas_partido (id_partido, id_jugador, puntos_anotados)
-                        VALUES ($1, $2, $3)
-                    `, [id_partido, pj.id_jugador, pj.puntos]);
-                }
+            const puntosData = puntos_jugadores
+                .filter(pj => pj.puntos > 0)
+                .map(pj => ({
+                    idPartido: id_partido,
+                    idJugador: pj.id_jugador,
+                    puntosAnotados: pj.puntos
+                }));
+            
+            if (puntosData.length > 0) {
+                await tx.insert(schema.estadisticasPartido).values(puntosData);
             }
         }
 
-        await client.query('COMMIT'); 
         return { mensaje: 'Partido finalizado, informe guardado y perdedor eliminado.' };
-
-    } catch (error) {
-        await client.query('ROLLBACK'); 
-        throw error;
-    } finally {
-        client.release();
-    }
+    });
 };
+
 const obtenerHistorialEquipo = async (id_entrenador) => {
-    const query = `
-        SELECT 
-            p.id_partido, 
-            t.nombre_torneo, 
-            el.nombre_oficial AS local_nombre, 
-            ev.nombre_oficial AS visitante_nombre, 
-            p.id_equipo_local,
-            p.id_equipo_visitante,
-            p.marcador_local, 
-            p.marcador_visitante, 
-            p.fecha, 
-            p.hora, 
-            p.id_arbitro_principal,
-            i.id_informe, 
-            i.contenido AS informe_contenido, 
-            ea.id_evaluacion, 
-            ea.puntuacion, 
-            ea.comentarios, 
-            ea.respuesta_arbitro,
-            (
-                SELECT COALESCE(json_agg(json_build_object(
-                    'tipo_sancion', s.tipo_sancion,
-                    'motivo', s.motivo,
-                    'nombre_jugador', j.nombre,
-                    'apellido_jugador', j.apellido,
-                    'id_equipo', pe.id_equipo
-                )), '[]'::json)
-                FROM sanciones s
-                JOIN jugadores j ON s.id_jugador = j.id_jugador
-                JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador AND pe.activo = true
-                WHERE s.id_partido = p.id_partido
-            ) AS sanciones_partido
-        FROM partidos p
-        JOIN torneos t ON p.id_torneo = t.id_torneo
-        JOIN equipos el ON p.id_equipo_local = el.id_equipo
-        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
-        LEFT JOIN informes_partido i ON p.id_partido = i.id_partido
-        LEFT JOIN evaluaciones_arbitro ea ON i.id_informe = ea.id_informe AND ea.id_evaluador = $1
-        WHERE (el.id_entrenador = $1 OR ev.id_entrenador = $1)
-          AND p.estado = 'Finalizado'
-        ORDER BY p.fecha DESC, p.hora DESC;
-    `;
-    const { rows } = await pool.query(query, [id_entrenador]);
+    const equipoLocal = alias(schema.equipos, 'equipo_local');
+    const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
+
+    const rows = await db.select({
+        id_partido: schema.partidos.idPartido,
+        nombre_torneo: schema.torneos.nombreTorneo,
+        local_nombre: equipoLocal.nombreOficial,
+        visitante_nombre: equipoVisitante.nombreOficial,
+        id_equipo_local: schema.partidos.idEquipoLocal,
+        id_equipo_visitante: schema.partidos.idEquipoVisitante,
+        marcador_local: schema.partidos.marcadorLocal,
+        marcador_visitante: schema.partidos.marcadorVisitante,
+        fecha: schema.partidos.fecha,
+        hora: schema.partidos.hora,
+        id_arbitro_principal: schema.partidos.idArbitroPrincipal,
+        id_informe: schema.informesPartido.idInforme,
+        informe_contenido: schema.informesPartido.contenido,
+        id_evaluacion: schema.evaluacionesArbitro.idEvaluacion,
+        puntuacion: schema.evaluacionesArbitro.puntuacion,
+        comentarios: schema.evaluacionesArbitro.comentarios,
+        respuesta_arbitro: schema.evaluacionesArbitro.respuestaArbitro,
+        
+        sanciones_partido: sql`(
+            SELECT COALESCE(json_agg(json_build_object(
+                'tipo_sancion', s.tipo_sancion,
+                'motivo', s.motivo,
+                'nombre_jugador', j.nombre,
+                'apellido_jugador', j.apellido,
+                'id_equipo', pe.id_equipo
+            )), '[]'::json)
+            FROM sanciones s
+            JOIN jugadores j ON s.id_jugador = j.id_jugador
+            JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador AND pe.activo = true
+            WHERE s.id_partido = ${schema.partidos.idPartido}
+        )`.as('sanciones_partido')
+    })
+    .from(schema.partidos)
+    .innerJoin(schema.torneos, eq(schema.partidos.idTorneo, schema.torneos.idTorneo))
+    .innerJoin(equipoLocal, eq(schema.partidos.idEquipoLocal, equipoLocal.idEquipo))
+    .innerJoin(equipoVisitante, eq(schema.partidos.idEquipoVisitante, equipoVisitante.idEquipo))
+    .leftJoin(schema.informesPartido, eq(schema.partidos.idPartido, schema.informesPartido.idPartido))
+    .leftJoin(schema.evaluacionesArbitro, and(
+        eq(schema.informesPartido.idInforme, schema.evaluacionesArbitro.idInforme),
+        eq(schema.evaluacionesArbitro.idEvaluador, id_entrenador)
+    ))
+    .where(
+        and(
+            or(
+                eq(equipoLocal.idEntrenador, id_entrenador),
+                eq(equipoVisitante.idEntrenador, id_entrenador)
+            ),
+            eq(schema.partidos.estado, 'Finalizado')
+        )
+    )
+    .orderBy(desc(schema.partidos.fecha), desc(schema.partidos.hora));
+
     return rows;
 };
+
 const guardarEvaluacion = async (datosEval) => {
-    const query = `
-        INSERT INTO evaluaciones_arbitro 
-        (id_informe, id_arbitro, id_evaluador, puntuacion, comentarios)
-        VALUES ($1, $2, $3, $4, $5) 
-        RETURNING *;
-    `;
-    const { rows } = await pool.query(query, [
-        datosEval.id_informe, 
-        datosEval.id_arbitro, 
-        datosEval.id_evaluador, 
-        datosEval.puntuacion, 
-        datosEval.comentarios
-    ]);
+    const rows = await db.insert(schema.evaluacionesArbitro)
+        .values({
+            idInforme: datosEval.id_informe,
+            idArbitro: datosEval.id_arbitro,
+            idEvaluador: datosEval.id_evaluador,
+            puntuacion: datosEval.puntuacion,
+            comentarios: datosEval.comentarios
+        })
+        .returning();
+        
     return rows[0];
 };
+
 const obtenerPartidosPublicos = async () => {
-    const query = `
-        SELECT 
-            p.id_partido, p.fecha, p.hora, p.estado, p.ronda_torneo, 
-            p.marcador_local, p.marcador_visitante,
-            t.nombre_torneo,
-            el.id_equipo AS id_local, el.nombre_oficial AS local_nombre, el.siglas AS local_siglas,
-            ev.id_equipo AS id_visitante, ev.nombre_oficial AS visitante_nombre, ev.siglas AS visitante_siglas,
-            c.nombre_cancha,
-            u.nombre AS arbitro_nombre, u.apellido AS arbitro_apellido
-        FROM partidos p
-        JOIN torneos t ON p.id_torneo = t.id_torneo
-        JOIN equipos el ON p.id_equipo_local = el.id_equipo
-        JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
-        JOIN canchas c ON p.id_cancha = c.id_cancha
-        LEFT JOIN usuarios u ON p.id_arbitro_principal = u.id_usuario
-        ORDER BY p.fecha DESC, p.hora DESC;
-    `;
-    const { rows } = await pool.query(query);
+    const equipoLocal = alias(schema.equipos, 'equipo_local');
+    const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
+    const arbitro = alias(schema.usuarios, 'arbitro');
+
+    const rows = await db.select({
+        id_partido: schema.partidos.idPartido,
+        fecha: schema.partidos.fecha,
+        hora: schema.partidos.hora,
+        estado: schema.partidos.estado,
+        ronda_torneo: schema.partidos.rondaTorneo,
+        marcador_local: schema.partidos.marcadorLocal,
+        marcador_visitante: schema.partidos.marcadorVisitante,
+        nombre_torneo: schema.torneos.nombreTorneo,
+        id_local: equipoLocal.idEquipo,
+        local_nombre: equipoLocal.nombreOficial,
+        local_siglas: equipoLocal.siglas,
+        id_visitante: equipoVisitante.idEquipo,
+        visitante_nombre: equipoVisitante.nombreOficial,
+        visitante_siglas: equipoVisitante.siglas,
+        nombre_cancha: schema.canchas.nombreCancha,
+        arbitro_nombre: arbitro.nombre,
+        arbitro_apellido: arbitro.apellido
+    })
+    .from(schema.partidos)
+    .innerJoin(schema.torneos, eq(schema.partidos.idTorneo, schema.torneos.idTorneo))
+    .innerJoin(equipoLocal, eq(schema.partidos.idEquipoLocal, equipoLocal.idEquipo))
+    .innerJoin(equipoVisitante, eq(schema.partidos.idEquipoVisitante, equipoVisitante.idEquipo))
+    .innerJoin(schema.canchas, eq(schema.partidos.idCancha, schema.canchas.idCancha))
+    .leftJoin(arbitro, eq(schema.partidos.idArbitroPrincipal, arbitro.idUsuario))
+    .orderBy(desc(schema.partidos.fecha), desc(schema.partidos.hora));
+
     return rows;
 };
 
 const obtenerFichaTecnicaPublica = async (id_partido) => {
-    // A. Descubrir quiénes son los equipos local y visitante de este partido
-    const partidoQuery = `SELECT id_equipo_local, id_equipo_visitante FROM partidos WHERE id_partido = $1`;
-    const { rows: partidoRows } = await pool.query(partidoQuery, [id_partido]);
     
-    if (partidoRows.length === 0) throw new Error("Partido no encontrado");
-    const { id_equipo_local, id_equipo_visitante } = partidoRows[0];
+    const partidoInfo = await db.select({
+        id_equipo_local: schema.partidos.idEquipoLocal,
+        id_equipo_visitante: schema.partidos.idEquipoVisitante
+    })
+    .from(schema.partidos)
+    .where(eq(schema.partidos.idPartido, id_partido))
+    .limit(1);
+    
+    if (partidoInfo.length === 0) throw new Error("Partido no encontrado");
+    const { id_equipo_local, id_equipo_visitante } = partidoInfo[0];
 
-    const queryAlineacion = `
-        SELECT 
-            pe.id_jugador, 
-            COALESCE(ap.estado, 'Ausente') AS estado_asistencia, 
-            COALESCE(ep.puntos_anotados, 0) AS puntos_anotados, 
-            COALESCE(a.rol_partido, pe.rol_equipo, 'Suplente') AS rol_partido,
-            j.nombre, 
-            j.apellido, 
-            pe.numero_camiseta, 
-            pe.es_capitan
-        FROM plantilla_equipo pe
-        JOIN jugadores j ON pe.id_jugador = j.id_jugador
-        LEFT JOIN asistencia_partidos ap ON pe.id_jugador = ap.id_jugador AND ap.id_partido = $1
-        LEFT JOIN estadisticas_partido ep ON pe.id_jugador = ep.id_jugador AND ep.id_partido = $1
-        LEFT JOIN alineaciones a ON pe.id_jugador = a.id_jugador AND a.id_partido = $1
-        WHERE pe.id_equipo = $2 AND pe.activo = true
-        ORDER BY pe.numero_camiseta ASC;
-    `;
+    const getAlineacion = async (idEquipo) => {
+        return await db.select({
+            id_jugador: schema.plantillaEquipo.idJugador,
+            estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Ausente')`.as('estado_asistencia'),
+            puntos_anotados: sql`COALESCE(${schema.estadisticasPartido.puntosAnotados}, 0)`.as('puntos_anotados'),
+            rol_partido: sql`COALESCE(${schema.alineaciones.rolPartido}, ${schema.plantillaEquipo.rolEquipo}, 'Suplente')`.as('rol_partido'),
+            nombre: schema.jugadores.nombre,
+            apellido: schema.jugadores.apellido,
+            numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
+            es_capitan: schema.plantillaEquipo.esCapitan
+        })
+        .from(schema.plantillaEquipo)
+        .innerJoin(schema.jugadores, eq(schema.plantillaEquipo.idJugador, schema.jugadores.idJugador))
+        .leftJoin(schema.asistenciaPartidos, and(
+            eq(schema.plantillaEquipo.idJugador, schema.asistenciaPartidos.idJugador),
+            eq(schema.asistenciaPartidos.idPartido, id_partido)
+        ))
+        .leftJoin(schema.estadisticasPartido, and(
+            eq(schema.plantillaEquipo.idJugador, schema.estadisticasPartido.idJugador),
+            eq(schema.estadisticasPartido.idPartido, id_partido)
+        ))
+        .leftJoin(schema.alineaciones, and(
+            eq(schema.plantillaEquipo.idJugador, schema.alineaciones.idJugador),
+            eq(schema.alineaciones.idPartido, id_partido)
+        ))
+        .where(
+            and(
+                eq(schema.plantillaEquipo.idEquipo, idEquipo),
+                eq(schema.plantillaEquipo.activo, true)
+            )
+        )
+        .orderBy(asc(schema.plantillaEquipo.numeroCamiseta));
+    };
 
-    const { rows: alineacionLocal } = await pool.query(queryAlineacion, [id_partido, id_equipo_local]);
-    const { rows: alineacionVisitante } = await pool.query(queryAlineacion, [id_partido, id_equipo_visitante]);
+    const alineacionLocal = await getAlineacion(id_equipo_local);
+    const alineacionVisitante = await getAlineacion(id_equipo_visitante);
 
-    const querySanciones = `
-        SELECT s.tipo_sancion, s.motivo, 
-               j.nombre AS nombre_jugador, j.apellido AS apellido_jugador,
-               e.nombre_oficial AS equipo_nombre
-        FROM sanciones s
-        JOIN jugadores j ON s.id_jugador = j.id_jugador
-        JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador AND pe.activo = true
-        JOIN equipos e ON pe.id_equipo = e.id_equipo
-        WHERE s.id_partido = $1;
-    `;
-    const { rows: sanciones } = await pool.query(querySanciones, [id_partido]);
+    const sanciones = await db.select({
+        tipo_sancion: schema.sanciones.tipoSancion,
+        motivo: schema.sanciones.motivo,
+        nombre_jugador: schema.jugadores.nombre,
+        apellido_jugador: schema.jugadores.apellido,
+        equipo_nombre: schema.equipos.nombreOficial
+    })
+    .from(schema.sanciones)
+    .innerJoin(schema.jugadores, eq(schema.sanciones.idJugador, schema.jugadores.idJugador))
+    .innerJoin(schema.plantillaEquipo, and(
+        eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador),
+        eq(schema.plantillaEquipo.activo, true)
+    ))
+    .innerJoin(schema.equipos, eq(schema.plantillaEquipo.idEquipo, schema.equipos.idEquipo))
+    .where(eq(schema.sanciones.idPartido, id_partido));
 
     return {
         alineacionLocal,
@@ -306,5 +405,13 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
     };
 };
 
-module.exports = { crearMultiples, obtenerPorTorneo, finalizarPartido, 
-    obtenerResumenPartido, obtenerHistorialEquipo, guardarEvaluacion, obtenerPartidosPublicos, obtenerFichaTecnicaPublica };
+module.exports = { 
+    crearMultiples, 
+    obtenerPorTorneo, 
+    finalizarPartido, 
+    obtenerResumenPartido, 
+    obtenerHistorialEquipo, 
+    guardarEvaluacion, 
+    obtenerPartidosPublicos, 
+    obtenerFichaTecnicaPublica 
+};

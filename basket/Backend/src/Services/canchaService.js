@@ -1,35 +1,42 @@
-const pool = require('../Config/db');
+const { db } = require('../Config/db');
+const schema = require('../models/schema');
+const { eq, asc, sql } = require('drizzle-orm');
 
 const obtenerTodas = async () => {
-    const query = `
-        SELECT id_cancha AS id, nombre_cancha AS name, direccion AS address, capacidad AS capacity 
-        FROM canchas 
-        WHERE activo = true 
-        ORDER BY nombre_cancha ASC;
-    `;
-    const { rows } = await pool.query(query);
+    const rows = await db.select({
+        id: schema.canchas.idCancha,
+        name: schema.canchas.nombreCancha,
+        address: schema.canchas.direccion,
+        capacity: schema.canchas.capacidad
+    })
+    .from(schema.canchas)
+    .where(eq(schema.canchas.activo, true))
+    .orderBy(asc(schema.canchas.nombreCancha));
+
     return rows;
 };
 
 const crear = async (canchaData) => {
-    const checkQuery = `SELECT id_cancha FROM canchas WHERE LOWER(direccion) = LOWER($1)`;
-    const checkResult = await pool.query(checkQuery, [canchaData.direccion]);
+    const checkResult = await db.select({ id_cancha: schema.canchas.idCancha })
+        .from(schema.canchas)
+        .where(sql`LOWER(${schema.canchas.direccion}) = LOWER(${canchaData.direccion})`);
     
-    if (checkResult.rows.length > 0) {
+    if (checkResult.length > 0) {
         throw new Error("Ya existe una cancha registrada con esta misma dirección exacta.");
     }
-    const insertQuery = `
-        INSERT INTO canchas (nombre_cancha, direccion, capacidad)
-        VALUES ($1, $2, $3) RETURNING *;
-    `;
-    const { rows } = await pool.query(insertQuery, [
-        canchaData.nombre_cancha,
-        canchaData.direccion,
-        canchaData.capacidad || null
-    ]);
+    
+    // Insertamos la nueva cancha
+    const rows = await db.insert(schema.canchas)
+        .values({
+            nombreCancha: canchaData.nombre_cancha,
+            direccion: canchaData.direccion,
+            capacidad: canchaData.capacidad || null
+        })
+        .returning();
     
     return rows[0];
 };
+
 module.exports = {
     obtenerTodas,
     crear

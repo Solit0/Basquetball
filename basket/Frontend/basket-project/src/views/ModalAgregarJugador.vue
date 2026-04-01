@@ -164,30 +164,36 @@ const resetForm = () => {
   }
   jugadorSeleccionado.value = ''
 }
+
 const llenarDatosLibre = () => {
     if (jugadorSeleccionado.value) {
-        form.value.id_jugador = jugadorSeleccionado.value.id_jugador
-        form.value.nombre = jugadorSeleccionado.value.nombre
-        form.value.apellido = jugadorSeleccionado.value.apellido
-        form.value.posicion = jugadorSeleccionado.value.posicion
-        form.value.estatura = jugadorSeleccionado.value.estatura
-        form.value.fecha_nacimiento = jugadorSeleccionado.value.fecha_nacimiento 
-            ? jugadorSeleccionado.value.fecha_nacimiento.split('T')[0] 
-            : ''
+        const j = jugadorSeleccionado.value;
+        
+        form.value.id_jugador = j.id_jugador || j.idJugador;
+        form.value.nombre = j.nombre;
+        form.value.apellido = j.apellido;
+        form.value.posicion = j.posicion;
+        form.value.estatura = j.estatura;
+        
+        const fechaNac = j.fecha_nacimiento || j.fechaNacimiento;
+        form.value.fecha_nacimiento = fechaNac ? fechaNac.split('T')[0] : '';
     }
 }
 
 watch(() => props.jugador, (newVal) => {
   if (newVal) {
     modoAgenteLibre.value = false;
+    
+    const fechaNac = newVal.fecha_nacimiento || newVal.fechaNacimiento;
+    
     form.value = {
-      id_jugador: newVal.id_jugador,
+      id_jugador: newVal.id_jugador || newVal.idJugador,
       nombre: newVal.nombre || '',
       apellido: newVal.apellido || '',
       numero_camiseta: newVal.numero_camiseta || '',
       posicion: newVal.posicion || '',
       estatura: newVal.estatura || '',
-      fecha_nacimiento: newVal.fecha_nacimiento ? newVal.fecha_nacimiento.split('T')[0] : '',
+      fecha_nacimiento: fechaNac ? fechaNac.split('T')[0] : '',
       es_capitan: newVal.es_capitan || false
     }
   } else {

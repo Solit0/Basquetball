@@ -83,7 +83,8 @@ const asumirEquipo = async (equipo) => {
     if (!confirmacion) return
 
     try {
-        const id_entrenador = parseInt(localStorage.getItem('usuario_id'), 10)
+        const id_entrenador = localStorage.getItem('usuario_id') 
+        
         await api.post(`/equipos/${equipo.id_equipo}/unirse`, { id_entrenador })
         
         alert('¡Felicidades! Ahora eres el entrenador de este equipo.')

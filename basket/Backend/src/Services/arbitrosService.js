@@ -1,8 +1,6 @@
-const { db } = require('../Config/index');
+const { db } = require('../Config/db');
 const schema = require('../models/schema');
-// Importamos los operadores necesarios de Drizzle
 const { eq, and, ne, notInArray, desc, asc, count, sql } = require('drizzle-orm');
-// Importamos alias para poder hacer JOIN a la misma tabla dos veces
 const { alias } = require('drizzle-orm/pg-core');
 
 const obtenerTorneosAsignados = async (id_arbitro) => {
@@ -30,7 +28,6 @@ const obtenerTorneosAsignados = async (id_arbitro) => {
 };
 
 const obtenerPartidosPorTorneo = async (id_arbitro, id_torneo) => {
-    // Creamos alias para la tabla equipos (Local y Visitante)
     const equipoLocal = alias(schema.equipos, 'equipo_local');
     const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
 
@@ -63,7 +60,6 @@ const obtenerPartidosPorTorneo = async (id_arbitro, id_torneo) => {
 };
 
 const obtenerDetallePartido = async (id_arbitro, id_partido) => {
-    // Alias para equipos y para los usuarios (entrenadores)
     const equipoLocal = alias(schema.equipos, 'equipo_local');
     const usuarioLocal = alias(schema.usuarios, 'usuario_local');
     const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
@@ -142,7 +138,7 @@ const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
             estado: estado
         })
         .onConflictDoUpdate({
-            // Definimos la llave primaria compuesta como objetivo del conflicto
+            
             target: [schema.asistenciaPartidos.idPartido, schema.asistenciaPartidos.idJugador],
             set: { estado: estado }
         })
@@ -158,7 +154,6 @@ const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
         apellido: schema.jugadores.apellido,
         numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
         es_capitan: schema.plantillaEquipo.esCapitan,
-        // Usamos sql`` literal para el COALESCE
         estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Pendiente')`.as('estado_asistencia')
     })
     .from(schema.jugadores)
@@ -188,8 +183,6 @@ const actualizarEstadoPartido = async (id_partido, estado) => {
 };
 
 const obtenerTorneosHistorial = async (id_arbitro) => {
-    // Usamos el GROUP BY en lugar del DISTINCT y PARTITION OVER del raw SQL original
-    // Drizzle y Postgres resuelven esto de forma mucho más limpia
     const rows = await db.select({
         id_torneo: schema.torneos.idTorneo,
         nombre_torneo: schema.torneos.nombreTorneo,
@@ -211,11 +204,9 @@ const obtenerTorneosHistorial = async (id_arbitro) => {
 
     return rows;
 };
-
 const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
     const equipoLocal = alias(schema.equipos, 'equipo_local');
     const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
-
     const rows = await db.select({
         id_partido: schema.partidos.idPartido,
         fecha: schema.partidos.fecha,
@@ -245,15 +236,11 @@ const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
 
     return rows;
 };
-
 const obtenerResumenFinalizado = async (id_partido) => {
-    // Primera consulta: Informe
     const informeRows = await db.select({ contenido: schema.informesPartido.contenido })
         .from(schema.informesPartido)
         .where(eq(schema.informesPartido.idPartido, id_partido))
         .limit(1);
-
-    // Segunda consulta: Sanciones cruzando con jugadores y alineaciones
     const sancionesRows = await db.select({
         tipo_sancion: schema.sanciones.tipoSancion,
         motivo: schema.sanciones.motivo,
