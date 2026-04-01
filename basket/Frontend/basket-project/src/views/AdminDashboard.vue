@@ -53,33 +53,31 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Canal <span class="text-red-500">*</span></label>
-                                        <input type="text" v-model="formCanal.nombre_canal" required placeholder="Ej: Canal 4"
+                                        <input type="text" v-model="formCanal.nombre_canal" required placeholder="Ej: Fox Sports"
                                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 outline-none">
                                     </div>
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Transmisión <span class="text-red-500">*</span></label>
-                                        <div class="flex space-x-6 mt-2">
-                                            <label class="flex items-center cursor-pointer">
-                                                <input type="radio" v-model="formCanal.id_tipo" value="1" class="text-indigo-600 focus:ring-indigo-500 border-gray-300">
-                                                <span class="ml-2 text-gray-700">Satelital / TV</span>
-                                            </label>
-                                            <label class="flex items-center cursor-pointer">
-                                                <input type="radio" v-model="formCanal.id_tipo" value="2" class="text-indigo-600 focus:ring-indigo-500 border-gray-300">
-                                                <span class="ml-2 text-gray-700">Online / Streaming</span>
-                                            </label>
-                                        </div>
+                                        <select v-model="formCanal.id_tipo" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
+                                            <option value="" disabled>Seleccione un tipo...</option>
+                                            <option value="Online">Online</option>
+                                            <option value="TV">TV</option>
+                                            <option value="Radio">Radio</option>
+                                            <option value="Streaming">Streaming</option>
+                                            <option value="Satelital">Satelital</option>
+                                        </select>
                                     </div>
 
-                                    <div v-if="formCanal.id_tipo == '1'" class="animate-fade-in">
+                                    <div v-if="['TV', 'Satelital'].includes(formCanal.id_tipo)" class="animate-fade-in">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Número de Canal</label>
                                         <input type="text" v-model="formCanal.numero_canal" placeholder="Ej: 4, 6, 21"
                                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 outline-none">
                                     </div>
 
-                                    <div v-if="formCanal.id_tipo == '2'" class="animate-fade-in">
+                                    <div v-if="['Online', 'Streaming', 'Radio'].includes(formCanal.id_tipo)" class="animate-fade-in">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">URL del Sitio <span class="text-red-500">*</span></label>
-                                        <input type="url" v-model="formCanal.url_sitio" placeholder="https://www.ejemplo.com" :required="formCanal.id_tipo == '2'"
+                                        <input type="url" v-model="formCanal.url_sitio" placeholder="https://www.ejemplo.com" required
                                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 outline-none">
                                     </div>
                                 </div>
@@ -197,15 +195,19 @@
                                 <div>
                                     <div class="flex justify-between items-start mb-4">
                                         <h4 class="text-xl font-black text-gray-900">{{ canal.nombre_canal }}</h4>
-                                        <span :class="canal.tipo_canal === 'satelital' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'" class="px-2 py-1 text-[10px] font-black rounded uppercase">
+                                        <span :class="{
+                                            'bg-blue-100 text-blue-800': ['TV', 'Satelital'].includes(canal.tipo_canal),
+                                            'bg-green-100 text-green-800': ['Online', 'Streaming'].includes(canal.tipo_canal),
+                                            'bg-yellow-100 text-yellow-800': canal.tipo_canal === 'Radio'
+                                        }" class="px-2 py-1 text-[10px] font-black rounded uppercase">
                                             {{ canal.tipo_canal }}
                                         </span>
                                     </div>
                                     
                                     <div class="text-sm text-gray-600 font-medium space-y-2 mb-6">
-                                        <p v-if="canal.tipo_canal === 'satelital'" class="flex items-center">
+                                        <p v-if="['TV', 'Satelital'].includes(canal.tipo_canal) && canal.numero_canal" class="flex items-center">
                                             <span class="bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200 mr-2 text-xs">CH</span>
-                                            {{ canal.numero_canal || 'N/A' }}
+                                            {{ canal.numero_canal }}
                                         </p>
                                         <a v-if="canal.url_sitio" :href="canal.url_sitio" target="_blank" class="text-indigo-600 hover:underline block truncate" title="Abrir URL">
                                             {{ canal.url_sitio }}
@@ -363,17 +365,13 @@ const actualizarNombreNavBar = (nuevoNombre) => {
 const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || '{}')
 const userName = ref(usuarioGuardado.nombre || 'Administrador')
 
-// ==========================================
-// LÓGICA DE CANALES DE TRANSMISIÓN
-// ==========================================
 const modoCanales = ref('lista') 
 const listaCanales = ref([])
 const cargandoForm = ref(false)
 const mensajeError = ref('')
 const mensajeExito = ref('')
-
 const formCanal = ref({
-    nombre_canal: '', id_tipo: '1', numero_canal: '', url_sitio: '', horario: ''
+    nombre_canal: '', id_tipo: '', numero_canal: '', url_sitio: '', horario: ''
 })
 
 const canalParaAsignar = ref(null)
@@ -386,7 +384,6 @@ const carteleraCanal = ref([])
 const cargarCanales = async () => {
     try {
         const data = await obtenerCanalesService()
-        // Forzamos la reactividad de Vue creando un nuevo arreglo
         listaCanales.value = [...data] 
     } catch (error) {
         console.error("Error cargando canales:", error)
@@ -401,20 +398,18 @@ const handleCrearCanal = async () => {
     try {
         const payload = {
             nombre_canal: formCanal.value.nombre_canal,
-            id_tipo: parseInt(formCanal.value.id_tipo, 10),
-            numero_canal: formCanal.value.id_tipo === '1' ? formCanal.value.numero_canal : null,
-            url_sitio: formCanal.value.id_tipo === '2' ? formCanal.value.url_sitio : null,
+            id_tipo: formCanal.value.id_tipo, 
+            numero_canal: ['TV', 'Satelital'].includes(formCanal.value.id_tipo) ? formCanal.value.numero_canal : null,
+            url_sitio: ['Online', 'Streaming', 'Radio'].includes(formCanal.value.id_tipo) ? formCanal.value.url_sitio : null,
             horario: formCanal.value.horario
         }
         
         await crearCanalService(payload)
         mensajeExito.value = '¡Canal registrado exitosamente!'
         
-        // RECARGAMOS LA LISTA DESDE LA BD
         await cargarCanales() 
         
-        // LIMPIAMOS EL FORMULARIO PARA LA PRÓXIMA VEZ
-        formCanal.value = { nombre_canal: '', id_tipo: '1', numero_canal: '', url_sitio: '', horario: '' }
+        formCanal.value = { nombre_canal: '', id_tipo: '', numero_canal: '', url_sitio: '', horario: '' }
         
         setTimeout(() => { 
             modoCanales.value = 'lista' 
@@ -518,9 +513,6 @@ const quitarTransmision = async (idTransmision) => {
     }
 }
 
-// ==========================================
-// LÓGICA DE CUENTAS
-// ==========================================
 const mostrandoFormCuenta = ref(false)
 const listaCuentas = ref([])
 const cargandoFormCuenta = ref(false)
