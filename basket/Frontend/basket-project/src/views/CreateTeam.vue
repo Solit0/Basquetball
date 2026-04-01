@@ -169,7 +169,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { crearEquipoService } from '../services/equiposService'
-import { crearCanchaService } from '../services/canchaService' // Ya no ocupamos obtenerCanchasService
+import { crearCanchaService } from '../services/canchaService' 
 
 const router = useRouter()
 const procesando = ref(false)
@@ -201,27 +201,26 @@ const handleCreateTeam = async () => {
     }
 
     const clasificacionMap = {
-        'varonil': 1,
-        'femenil': 2,
-        'mixto': 3
+        'varonil': "varonil",
+        'femenil': "femenil",
+        'mixto': "mixto"
     }
 
     procesando.value = true;
 
     try {
-        // 1. Crear la Cancha primero (El backend validará que no se repita)
         const nuevaCanchaPayload = {
             nombre_cancha: form.value.newCourtName,
             direccion: form.value.newCourtAddress,
             capacidad: form.value.newCourtCapacity || null
         };
-        
         const respuestaCancha = await crearCanchaService(nuevaCanchaPayload);
-        
-        // Asumiendo que tu backend devuelve la cancha creada bajo "cancha" o directamente el objeto
-        const idCanchaFinal = respuestaCancha.cancha ? respuestaCancha.cancha.id_cancha : respuestaCancha.id_cancha;
+        const objCancha = respuestaCancha.cancha ? respuestaCancha.cancha : respuestaCancha;
+        const idCanchaFinal = objCancha.idCancha || objCancha.id_cancha;
 
-        // 2. Crear el Equipo amarrado a esa nueva cancha
+        if (!idCanchaFinal) {
+            throw new Error("No se pudo obtener el ID de la cancha creada.");
+        }
         const idEntrenador = localStorage.getItem('usuario_id'); 
         const payloadEquipo = {
             nombre_oficial: form.value.teamName,
@@ -233,12 +232,10 @@ const handleCreateTeam = async () => {
         
         await crearEquipoService(payloadEquipo)
         
-        // 3. Redirigir al éxito
         router.push('/entrenador')
 
     } catch (error) {
         console.error("Error en el proceso:", error);
-        // Si el backend lanzó el error de "Ya existe una cancha con esa dirección", se mostrará aquí:
         if (error.response && error.response.data && error.response.data.error) {
             errors.value.general = error.response.data.error;
         } else if (error.message) {
@@ -250,11 +247,9 @@ const handleCreateTeam = async () => {
         procesando.value = false;
     }
 }
-
 const cancelCreate = () => {
     router.push('/entrenador')
 }
-
 const logout = () => {
     localStorage.removeItem('usuario')
     localStorage.removeItem('usuario_id')

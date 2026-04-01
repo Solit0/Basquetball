@@ -55,7 +55,6 @@ const obtenerPorId = async (id_equipo) => {
         nombre_cancha: schema.canchas.nombreCancha,
         direccion_cancha: schema.canchas.direccion,
         capacidad_cancha: schema.canchas.capacidad,
-        
         entrenador_nombre: sql`CONCAT(${schema.usuarios.nombre}, ' ', ${schema.usuarios.apellido})`.as('entrenador_nombre')
     })
     .from(schema.equipos)
@@ -95,6 +94,14 @@ const crear = async (datosEquipo) => {
     const { nombre_oficial, siglas, id_clasificacion, id_entrenador, id_cancha, nueva_cancha } = datosEquipo;
     
     return await db.transaction(async (tx) => {
+        const clasificacionDb = await tx.select({ id: schema.clasificacionEquipo.idClasificacion })
+            .from(schema.clasificacionEquipo)
+            .where(eq(schema.clasificacionEquipo.descripcion, id_clasificacion))
+            .limit(1);
+        if (clasificacionDb.length === 0) {
+            throw new Error(`La clasificación '${id_clasificacion}' no existe.`);
+        }
+        const uuid_clasificacion_real = clasificacionDb[0].id;
         let canchaAsignadaId = id_cancha;
 
         if (!canchaAsignadaId && nueva_cancha) {
@@ -109,11 +116,12 @@ const crear = async (datosEquipo) => {
             canchaAsignadaId = nueva.id_cancha;
         }
 
+        // 3. CREAR EQUIPO
         const [nuevoEquipo] = await tx.insert(schema.equipos)
             .values({
                 nombreOficial: nombre_oficial,
                 siglas: siglas,
-                idClasificacion: id_clasificacion,
+                idClasificacion: uuid_clasificacion_real, 
                 idCancha: canchaAsignadaId,
                 idEntrenador: id_entrenador || null
             })
@@ -132,7 +140,6 @@ const actualizar = async (id_equipo, datosEquipo) => {
     try {
         return await db.transaction(async (tx) => {
             let canchaFinalId = id_cancha;
-
             if (id_cancha && direccion_cancha) {
                 const duplicateCheck = await tx.select({ id: schema.canchas.idCancha })
                     .from(schema.canchas)
@@ -174,11 +181,22 @@ const actualizar = async (id_equipo, datosEquipo) => {
                 canchaFinalId = nuevaCancha.id_cancha;
             }
 
-            // 2. Actualizar la información del Equipo
+            let uuid_clasificacion_real = undefined;
+            if (id_clasificacion) {
+                const clasificacionDb = await tx.select({ id: schema.clasificacionEquipo.idClasificacion })
+                    .from(schema.clasificacionEquipo)
+                    .where(eq(schema.clasificacionEquipo.descripcion, id_clasificacion))
+                    .limit(1);
+
+                if (clasificacionDb.length > 0) {
+                    uuid_clasificacion_real = clasificacionDb[0].id;
+                }
+            }
+
             const updateEquipoData = {};
             if (nombre_oficial !== undefined) updateEquipoData.nombreOficial = nombre_oficial;
             if (siglas !== undefined) updateEquipoData.siglas = siglas;
-            if (id_clasificacion !== undefined) updateEquipoData.idClasificacion = id_clasificacion;
+            if (uuid_clasificacion_real !== undefined) updateEquipoData.idClasificacion = uuid_clasificacion_real;
             if (canchaFinalId !== undefined) updateEquipoData.idCancha = canchaFinalId;
 
             const [equipoActualizado] = await tx.update(schema.equipos)
@@ -213,7 +231,6 @@ const eliminar = async (id_equipo) => {
 };
 
 const obtenerEstadisticas = async (id_equipo) => {
-    // Usamos SQL Literal para replicar las funciones de agregación complejas
     const rows = await db.select({
         jugadores_activos: sql`COUNT(DISTINCT ${schema.plantillaEquipo.idJugador})::int`,
         partidos_jugados: sql`COUNT(DISTINCT ${schema.partidos.idPartido})::int`,
