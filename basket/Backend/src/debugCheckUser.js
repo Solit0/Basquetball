@@ -27,4 +27,4 @@ const bcrypt = require('bcrypt');
   } finally {
     await client.end();
   }
-})();
+});
