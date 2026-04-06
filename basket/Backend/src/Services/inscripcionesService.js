@@ -31,7 +31,7 @@ const solicitarInscripcion = async (id_torneo, id_entrenador) => {
         .limit(1);
 
         if (equipoResult.length === 0) {
-            throw new Error('REGLA_INSCRIPCIÓN: No tienes ningún equipo activo asignado para inscribir.');
+            throw new Error('REGLA DE INSCRIPCIÓN: No tienes ningún equipo activo asignado para inscribir.');
         }
         const equipo = equipoResult[0];
         const torneoResult = await tx.select({
@@ -48,10 +48,10 @@ const solicitarInscripcion = async (id_torneo, id_entrenador) => {
         const torneo = torneoResult[0];
 
         if (torneo.estado !== 'En inscripción') {
-            throw new Error('REGLA_INSCRIPCIÓN: Este torneo no está recibiendo solicitudes actualmente.');
+            throw new Error('REGLA DE INSCRIPCIÓN: Este torneo no está recibiendo solicitudes actualmente.');
         }
         if (equipo.id_clasificacion !== torneo.id_clasificacion) {
-            throw new Error('REGLA_INSCRIPCIÓN: La clasificación de tu equipo (Varonil/Femenil/Mixto) no coincide con la categoría de este torneo.');
+            throw new Error('REGLA DE INSCRIPCIÓN: La clasificación de tu equipo (Varonil/Femenil/Mixto) no coincide con la categoría de este torneo.');
         }
         const totalJugadores = await tx.select({ count: sql`COUNT(*)::int` })
             .from(schema.plantillaEquipo)
@@ -63,10 +63,9 @@ const solicitarInscripcion = async (id_torneo, id_entrenador) => {
             );
 
         if (totalJugadores[0].count === 0) {
-            throw new Error('REGLA_INSCRIPCIÓN: Tu equipo está vacío. Debes tener al menos 1 jugador en la plantilla para enviar la solicitud.');
+            throw new Error('REGLA DE INSCRIPCIÓN: Tu equipo está vacío. Debes tener al menos 1 jugador en la plantilla para enviar la solicitud.');
         }
 
-        // 5. Validar si ya existe una solicitud previa para este mismo torneo
         const solicitudPrevia = await tx.select({ id: schema.inscripciones.idInscripcion })
             .from(schema.inscripciones)
             .where(
@@ -77,7 +76,7 @@ const solicitarInscripcion = async (id_torneo, id_entrenador) => {
             );
         
         if (solicitudPrevia.length > 0) {
-            throw new Error('REGLA_INSCRIPCIÓN: Ya has enviado una solicitud para este torneo anteriormente.');
+            throw new Error('REGLA DE INSCRIPCIÓN: Ya has enviado una solicitud para este torneo anteriormente.');
         }
         const formatYYYYMMDD = (d) => {
             const date = new Date(d);
@@ -99,7 +98,7 @@ const solicitarInscripcion = async (id_torneo, id_entrenador) => {
             );
 
         if (torneosSolapados.length > 0) {
-            throw new Error('REGLA_INSCRIPCIÓN: Las fechas de este torneo se solapan con otro torneo en el que tu equipo ya está inscrito o en revisión.');
+            throw new Error('Error: Las fechas de este torneo se solapan con otro torneo en el que tu equipo ya está inscrito o en revisión.');
         }
         if (torneo.categoria !== 'Libre') {
             const titulares = await tx.select({
@@ -119,18 +118,18 @@ const solicitarInscripcion = async (id_torneo, id_entrenador) => {
 
             for (const titular of titulares) {
                 if (!titular.fecha_nacimiento) {
-                    throw new Error(`REGLA_EDAD: El titular ${titular.nombre} ${titular.apellido} no tiene fecha de nacimiento registrada.`);
+                    throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} ${titular.apellido} no tiene fecha de nacimiento registrada.`);
                 }
                 
                 const edad = calcularEdadEnFecha(titular.fecha_nacimiento, torneo.fecha_inicio);
                 
-                if (torneo.categoria === 'Sub-12' && edad > 12) throw new Error(`REGLA_EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para Sub-12 es 12 años.`);
-                if (torneo.categoria === 'Sub-15' && edad > 15) throw new Error(`REGLA_EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para Sub-15 es 15 años.`);
-                if (torneo.categoria === 'Sub-18' && edad > 18) throw new Error(`REGLA_EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para Sub-18 es 18 años.`);
-                if (torneo.categoria === 'U-23' && edad > 23) throw new Error(`REGLA_EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para U-23 es 23 años.`);
+                if (torneo.categoria === 'Sub-12' && edad > 12) throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para Sub-12 es 12 años.`);
+                if (torneo.categoria === 'Sub-15' && edad > 15) throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para Sub-15 es 15 años.`);
+                if (torneo.categoria === 'Sub-18' && edad > 18) throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para Sub-18 es 18 años.`);
+                if (torneo.categoria === 'U-23' && edad > 23) throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} tendrá ${edad} años al iniciar el torneo. El límite para U-23 es 23 años.`);
                 
-                if (torneo.categoria === 'Veteranos' && edad < 35) throw new Error(`REGLA_EDAD: El titular ${titular.nombre} tendrá ${edad} años. La categoría Veteranos requiere mínimo 35 años.`);
-                if (torneo.categoria === 'Maxi-Baloncesto' && edad < 45) throw new Error(`REGLA_EDAD: El titular ${titular.nombre} tendrá ${edad} años. Maxi-Baloncesto requiere mínimo 45 años.`);
+                if (torneo.categoria === 'Veteranos' && edad < 35) throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} tendrá ${edad} años. La categoría Veteranos requiere mínimo 35 años.`);
+                if (torneo.categoria === 'Maxi-Baloncesto' && edad < 45) throw new Error(`REGLA DE EDAD: El titular ${titular.nombre} tendrá ${edad} años. Maxi-Baloncesto requiere mínimo 45 años.`);
             }
         }
         const [nuevaSolicitud] = await tx.insert(schema.inscripciones)

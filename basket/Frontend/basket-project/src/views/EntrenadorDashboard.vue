@@ -301,6 +301,9 @@
                         <div v-if="activeTab === 'inscribir-torneos'" class="h-full animate-fade-in">
                             <InscribirTorneos />
                         </div>
+                        <div v-if="activeTab === 'calendario-partidos'" class="h-full animate-fade-in">
+                            <CalendarioPartidos />
+                        </div>
 
                         <div v-if="activeTab === 'torneos-jugados'" class="h-full animate-fade-in">
                             <HistorialPartidos />
@@ -373,6 +376,7 @@ import ModalAgregarJugador from '../views/ModalAgregarJugador.vue'
 import HistorialPartidos from './Entrenador/HistorialPartidos.vue'
 import MisTorneos from './Entrenador/MisTorneos.vue' 
 import InscribirTorneos from './Entrenador/InscribirTorneos.vue'
+import CalendarioPartidos from './Espectadores/CalendarioPartidos.vue'
 import { api } from '../Enviroments/enviroment'
 import { obtenerEquipoDeEntrenadorService, actualizarEquipoService } from '../services/equiposService'
 import { 

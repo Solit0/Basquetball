@@ -65,7 +65,7 @@
                             class="mt-1 w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 font-medium outline-none focus:ring-2 focus:ring-amber-500 disabled:text-gray-500 disabled:cursor-not-allowed">
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-black text-gray-500 uppercase">Categoría</label>
                             <select v-model="form.categoria" required :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 outline-none focus:ring-2 focus:ring-amber-500 disabled:text-gray-500 disabled:cursor-not-allowed">
@@ -76,6 +76,14 @@
                                 <option value="Libre">Libre</option>
                                 <option value="Veteranos">Veteranos</option>
                                 <option value="Maxi-Baloncesto">Maxi-Baloncesto</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-gray-500 uppercase">Género</label>
+                            <select v-model="form.id_clasificacion" required :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 outline-none focus:ring-2 focus:ring-amber-500 disabled:text-gray-500 disabled:cursor-not-allowed">
+                                <option value="Varonil">Varonil</option>
+                                <option value="Femenil">Femenil</option>
+                                <option value="Mixto">Mixto</option>
                             </select>
                         </div>
                         <div>
@@ -132,7 +140,7 @@
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             Eliminar Torneo
                         </button>
-                                                
+                                                                        
                         <button type="submit" v-if="torneoSeleccionado.estado === 'En inscripción'" :disabled="procesando" class="px-6 py-2.5 bg-amber-600 text-white rounded-md font-bold hover:bg-amber-700 transition shadow-md flex items-center">
                             <svg v-if="procesando" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             Guardar Cambios
@@ -188,7 +196,6 @@ const torneos = ref([])
 const torneoSeleccionado = ref(null)
 const equiposInscritos = ref([])
 
-// VARIABLES PARA REGLAMENTO DIVIDIDO
 const formReglamentos = ref({
     general: '',
     sanciones: '',
@@ -201,28 +208,31 @@ const form = ref({
     id_clasificacion: '', reglamento: ''
 })
 
-// FUNCIÓN PARA SEPARAR EL TEXTO DE LA BASE DE DATOS EN CAJITAS
+// 🔴 CORRECCIÓN: Separación exacta de reglamentos
 const separarReglamentos = (textoCompleto) => {
     formReglamentos.value = { general: '', sanciones: '', normativas: '' };
     if (!textoCompleto) return;
 
     if (!textoCompleto.includes('REGLAMENTO GENERAL:\n')) {
-        // Si el torneo es viejo y no tiene este formato, metemos todo en General
         formReglamentos.value.general = textoCompleto;
         return;
     }
 
-    const partesSanciones = textoCompleto.split('\n\nSANCIONES DISCIPLINARIAS:\n');
-    formReglamentos.value.general = partesSanciones[0].replace('REGLAMENTO GENERAL:\n', '').trim();
-    
-    if (partesSanciones.length > 1) {
-        const partesNormativas = partesSanciones[1].split('\n\nNORMATIVAS ESPECIFICAS:\n');
-        formReglamentos.value.sanciones = partesNormativas[0].trim();
-        formReglamentos.value.normativas = (partesNormativas[1] || '').trim();
+    try {
+        const partesSanciones = textoCompleto.split('\n\nSANCIONES DISCIPLINARIAS:\n');
+        formReglamentos.value.general = partesSanciones[0].replace('REGLAMENTO GENERAL:\n', '').trim();
+        
+        if (partesSanciones.length > 1) {
+            const partesNormativas = partesSanciones[1].split('\n\nNORMATIVAS ESPECIFICAS:\n');
+            formReglamentos.value.sanciones = partesNormativas[0].trim();
+            formReglamentos.value.normativas = (partesNormativas[1] || '').trim();
+        }
+    } catch (e) {
+        console.error("Error al parsear el reglamento:", e);
+        formReglamentos.value.general = textoCompleto; // Fallback por si la estructura está rota
     }
 }
 
-// FUNCIÓN PARA UNIR LAS CAJITAS ANTES DE ENVIAR A LA BASE DE DATOS
 const concatenarReglamentos = () => {
     return `REGLAMENTO GENERAL:\n${formReglamentos.value.general}\n\nSANCIONES DISCIPLINARIAS:\n${formReglamentos.value.sanciones}\n\nNORMATIVAS ESPECIFICAS:\n${formReglamentos.value.normativas}`;
 }
@@ -239,11 +249,12 @@ const seleccionarTorneo = async (torneo) => {
     torneoSeleccionado.value = torneo
     form.value = {
         ...torneo,
+        // 🔴 NUEVO: Capturamos la clasificación original para poder editarla si queremos
+        id_clasificacion: torneo.clasificacion_genero || 'Varonil',
         fecha_inicio: torneo.fecha_inicio ? torneo.fecha_inicio.split('T')[0] : '',
         fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : ''
     }
     
-    // Separamos el reglamento mágico aquí:
     separarReglamentos(torneo.reglamento);
 
     viewMode.value = 'gestionar'
@@ -263,7 +274,6 @@ const handleActualizarTorneo = async () => {
         return alert('Error: La fecha de inicio no puede ser posterior a la fecha de fin.')
     }
 
-    // Unimos los reglamentos antes de mandar el form
     form.value.reglamento = concatenarReglamentos();
 
     procesando.value = true
@@ -271,6 +281,7 @@ const handleActualizarTorneo = async () => {
         await editarTorneoService(torneoSeleccionado.value.id_torneo, form.value)
         alert('Bases del torneo actualizadas exitosamente.')
         await cargarTorneos()
+        volverListado() // Devolvemos a la vista principal para ver los cambios
     } catch (error) {
         alert(error.response?.data?.error || 'Error al actualizar las bases.')
     } finally {
@@ -316,7 +327,6 @@ const volverListado = () => {
     torneoSeleccionado.value = null
     equiposInscritos.value = []
     
-    // Limpiamos formularios
     formReglamentos.value = { general: '', sanciones: '', normativas: '' };
     
     cargarTorneos()

@@ -144,7 +144,6 @@ const torneoSeleccionado = ref(null)
 const cargando = ref(true)
 const procesando = ref(false)
 
-// Obtenemos el ID del Entrenador conectado
 const idEntrenador = localStorage.getItem('usuario_id')
 
 const cargarTorneos = async () => {
@@ -152,7 +151,6 @@ const cargarTorneos = async () => {
     try {
         const todosLosTorneos = await obtenerTorneosActivosService();
         
-        // Filtramos para mostrar SOLO los que están en fase de inscripción
         torneosAbiertos.value = todosLosTorneos.filter(t => t.estado === 'En inscripción');
     } catch (error) {
         console.error("Error al cargar los torneos:", error);
@@ -163,7 +161,6 @@ const cargarTorneos = async () => {
 
 const verDetalles = (torneo) => {
     torneoSeleccionado.value = torneo;
-    // Hacemos scroll hacia arriba para una mejor experiencia al ver los detalles
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -178,12 +175,10 @@ const solicitarCupo = async () => {
 
     procesando.value = true;
     try {
-        // Llamamos al backend para que audite al equipo y cree la solicitud
         await solicitarInscripcionService(torneoSeleccionado.value.id_torneo, idEntrenador);
         
-        alert('🎉 ¡SOLICITUD ENVIADA EXITOSAMENTE!\n\nTu equipo ha pasado todas las validaciones del sistema. Ahora debes esperar a que el administrador apruebe tu solicitud.');
+        alert(' ¡SOLICITUD ENVIADA EXITOSAMENTE!\n\nTu equipo ha pasado todas las validaciones del sistema. Ahora debes esperar a que el administrador apruebe tu solicitud.');
         
-        // Volvemos al catálogo después del éxito
         volverAlCatalogo();
     } catch (error) {
         // Mostramos la alerta exacta (Error de Edad, Falta de Jugadores, Género, etc.) generada por tu robusto backend
