@@ -298,7 +298,10 @@
                         <div v-if="activeTab === 'torneo'" class="h-full animate-fade-in">
                             <MisTorneos />
                         </div>
-                        
+                        <div v-if="activeTab === 'inscribir-torneos'" class="h-full animate-fade-in">
+                            <InscribirTorneos />
+                        </div>
+
                         <div v-if="activeTab === 'torneos-jugados'" class="h-full animate-fade-in">
                             <HistorialPartidos />
                         </div>
@@ -369,7 +372,7 @@ import EditarEquipo from '../modals/EditarEquipo.vue'
 import ModalAgregarJugador from '../views/ModalAgregarJugador.vue'
 import HistorialPartidos from './Entrenador/HistorialPartidos.vue'
 import MisTorneos from './Entrenador/MisTorneos.vue' 
-
+import InscribirTorneos from './Entrenador/InscribirTorneos.vue'
 import { api } from '../Enviroments/enviroment'
 import { obtenerEquipoDeEntrenadorService, actualizarEquipoService } from '../services/equiposService'
 import { 
@@ -380,7 +383,7 @@ import {
     obtenerJugadoresLibresService,
     vincularJugadorService
 } from '../services/jugadoresService'
-import {actualizarPerfilService} from '../services/usuarioService'
+import { actualizarPerfilService } from '../services/usuarioService'
 
 const router = useRouter()
 const activeTab = ref('equipo')
@@ -400,8 +403,8 @@ const perfilForm = ref({
     apellido: usuarioData.apellido || '',
     correo: usuarioData.correo || ''
 })
-const titulares = computed(() => players.value.filter(p => p.rol_equipo === 'Titular'))
-const suplentes = computed(() => players.value.filter(p => p.rol_equipo !== 'Titular'))
+const titulares = computed(() => players.value.filter(p => p.rol_equipo && p.rol_equipo.toLowerCase() === 'titular'))
+const suplentes = computed(() => players.value.filter(p => !p.rol_equipo || p.rol_equipo.toLowerCase() !== 'titular'))
 const titularesCount = computed(() => titulares.value.length)
 
 const obtenerMiEquipo = async () => {
@@ -422,27 +425,25 @@ const obtenerMiEquipo = async () => {
         }
     }
 }
+
 const guardarPerfil = async () => {
     guardandoPerfil.value = true;
     try {
         const idUsuario = localStorage.getItem('usuario_id');
-        
         const respuesta = await actualizarPerfilService(idUsuario, perfilForm.value);
         
         const nuevoUsuarioLocal = { ...usuarioData, ...respuesta.usuario };
-        
         localStorage.setItem('usuario', JSON.stringify(nuevoUsuarioLocal));
         
         userName.value = respuesta.usuario.nombre;
-        
         alert('Perfil actualizado exitosamente.');
     } catch (error) {
-        
         alert(error.response?.data?.error || 'Error al actualizar el perfil.');
     } finally {
         guardandoPerfil.value = false;
     }
 }
+
 const cargarEstadisticas = async () => {
     if (equipoActual.value) {
         try {
@@ -483,12 +484,9 @@ const abandonarEquipoDirigido = async () => {
     }
 }
 
-const openEditTeamModal = () => {
-    showEditarEquipoModal.value = true
-}
-const closeEditTeamModal = () => {
-    showEditarEquipoModal.value = false
-}
+const openEditTeamModal = () => showEditarEquipoModal.value = true
+const closeEditTeamModal = () => showEditarEquipoModal.value = false
+
 const saveTeam = async (updatedData) => {
     try {
         await actualizarEquipoService(equipoActual.value.id_equipo, updatedData)
@@ -499,6 +497,7 @@ const saveTeam = async (updatedData) => {
         alert(error.response?.data?.error || 'Error al actualizar los datos del equipo')
     }
 }
+
 const cargarJugadores = async () => {
     if (equipoActual.value) {
         try {
@@ -582,14 +581,22 @@ const eliminarJugador = async (player) => {
 }
 
 const cambiarRol = async (player, nuevoRol) => {
-    if (nuevoRol === 'Titular' && titularesCount.value >= 5) {
-        alert('REGLA BALONCESTO: Tu equipo ya tiene 5 jugadores titulares asignados.');
-        return;
+    if (nuevoRol === 'Titular') {
+        if (titularesCount.value >= 5) {
+            alert('REGLA BALONCESTO: Tu equipo ya tiene 5 jugadores titulares asignados.');
+            return;
+        }
+        if (titularesCount.value === 4) {
+            const hayCapitanEnTitulares = titulares.value.some(p => p.es_capitan);
+            const esteJugadorEsCapitan = player.es_capitan;
+            if (!hayCapitanEnTitulares && !esteJugadorEsCapitan) {
+                alert(' REGLA DEL BALONCESTO:\n\nEl quinteto titular debe incluir obligatoriamente al Capitán del equipo.\n\nNo puedes completar los 5 cupos si ninguno de ellos tiene la banda de capitán. Sube a tu capitán primero.');
+                return;
+            }
+        }
     }
     try {
         await actualizarJugadorService(player.id_jugador, {
-            ...player,
-            fecha_nacimiento: player.fecha_nacimiento ? player.fecha_nacimiento.split('T')[0] : null,
             id_equipo: equipoActual.value.id_equipo,
             rol_equipo: nuevoRol 
         });
@@ -598,15 +605,8 @@ const cambiarRol = async (player, nuevoRol) => {
         alert(error.response?.data?.error || 'Ocurrió un error al intentar cambiar la alineación.');
     }
 }
-
-const navigateTo = (tab) => {
-    activeTab.value = tab
-}
-
-const irAEquiposLibres = () => {
-    router.push('/equipos-libres');
-}
-
+const navigateTo = (tab) => activeTab.value = tab
+const irAEquiposLibres = () => router.push('/equipos-libres');
 const logout = () => {
     localStorage.removeItem('usuario')
     localStorage.removeItem('usuario_id')

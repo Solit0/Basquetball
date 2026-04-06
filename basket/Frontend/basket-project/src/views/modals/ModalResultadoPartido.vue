@@ -34,15 +34,40 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Árbitro Principal Designado</label>
-                            <select v-model="form.id_arbitro" disabled class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 outline-none cursor-not-allowed">
-                                <option value="" disabled>Cargando árbitro...</option>
-                                <option v-for="arb in listaArbitros" :key="arb.id_usuario" :value="arb.id_usuario">
-                                    {{ arb.nombre }} {{ arb.apellido }}
-                                </option>
-                            </select>
-                            <p class="text-[10px] text-gray-400 mt-1 font-bold uppercase">Asignado durante la calendarización de la ronda</p>
+                        <div class="mt-6 border-t border-gray-100 pt-6">
+                            <h5 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Terna Arbitral Asignada</h5>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-lg">
+                                    <label class="block text-[10px] font-black text-indigo-500 uppercase mb-1">Árbitro Principal</label>
+                                    <select v-model="form.id_arbitro_principal" disabled class="w-full bg-transparent text-indigo-900 font-bold text-sm outline-none appearance-none cursor-not-allowed">
+                                        <option value="" disabled>Cargando...</option>
+                                        <option v-for="arb in listaArbitros" :key="'p_'+arb.id_usuario" :value="arb.id_usuario">
+                                            {{ arb.nombre }} {{ arb.apellido }}
+                                        </option>
+                                    </select>
+                                </div>
+                                
+                                <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg">
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Asistente 1</label>
+                                    <select v-model="form.id_arbitro_asistente1" disabled class="w-full bg-transparent text-gray-700 font-bold text-sm outline-none appearance-none cursor-not-allowed">
+                                        <option value="" disabled>Cargando...</option>
+                                        <option v-for="arb in listaArbitros" :key="'a1_'+arb.id_usuario" :value="arb.id_usuario">
+                                            {{ arb.nombre }} {{ arb.apellido }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg">
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Asistente 2</label>
+                                    <select v-model="form.id_arbitro_asistente2" disabled class="w-full bg-transparent text-gray-700 font-bold text-sm outline-none appearance-none cursor-not-allowed">
+                                        <option value="" disabled>Cargando...</option>
+                                        <option v-for="arb in listaArbitros" :key="'a2_'+arb.id_usuario" :value="arb.id_usuario">
+                                            {{ arb.nombre }} {{ arb.apellido }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -193,7 +218,7 @@ import { finalizarPartidoService } from '../../services/partidosService'
 
 const props = defineProps({
     partido: { type: Object, required: true },
-    idTorneo: { type: Number, required: true }
+    idTorneo: { type: String, required: true }
 })
 
 const emit = defineEmits(['close'])
@@ -211,18 +236,24 @@ const sanciones = ref([])
 const form = ref({
     marcador_local: 0,
     marcador_visitante: 0,
-    id_arbitro: null,
+    id_arbitro_principal: null,
+    id_arbitro_asistente1: null,
+    id_arbitro_asistente2: null,
     informe_contenido: ''
-
 })
 
 onMounted(async () => {
     try {
         const usuarios = await obtenerUsuariosService();
         listaArbitros.value = usuarios.filter(u => u.rol === 'arbitro');
-        form.value.id_arbitro = props.partido.id_arbitro_principal || null;
+        
+        form.value.id_arbitro_principal = props.partido.id_arbitro_principal || null;
+        form.value.id_arbitro_asistente1 = props.partido.id_arbitro_asistente1 || null;
+        form.value.id_arbitro_asistente2 = props.partido.id_arbitro_asistente2 || null;
+        
         const alineacionLocal = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_equipo_local);
         const alineacionVisitante = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_equipo_visitante);
+        
         jugadoresLocal.value = alineacionLocal.filter(j => j.estado_asistencia === 'Presente');
         jugadoresVisitante.value = alineacionVisitante.filter(j => j.estado_asistencia === 'Presente');
 
@@ -277,7 +308,7 @@ const guardarResultado = async () => {
             id_equipo_visitante: props.partido.id_equipo_visitante,
             marcador_local: parseInt(form.value.marcador_local),
             marcador_visitante: parseInt(form.value.marcador_visitante),
-            id_arbitro: form.value.id_arbitro || null, // Convertir vacío a null
+            id_arbitro: form.value.id_arbitro_principal || null, 
             informe_contenido: form.value.informe_contenido,
             incidentes: incidentesLimpios,
             sanciones: sanciones.value,

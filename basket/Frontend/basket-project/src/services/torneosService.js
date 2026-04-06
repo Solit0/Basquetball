@@ -45,3 +45,11 @@ export const obtenerTorneosDeEquipoService = async (idEntrenador) => {
     const response = await api.get(`/torneos/entrenadores/${idEntrenador}/torneos`);
     return response.data;
 };
+export const obtenerInscripcionesPorTorneoService = async (idTorneo) => {
+    const response = await api.get(`/torneos/${idTorneo}/inscripciones`);
+    return response.data;
+}
+export const responderInscripcionService = async (idTorneo, idEquipo, estado) => {
+    const response = await api.patch(`/torneos/${idTorneo}/equipos/${idEquipo}/inscripcion`, { estado_nuevo: estado });
+    return response.data;
+}

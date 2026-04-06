@@ -124,9 +124,40 @@ const obtenerInscritos = async (req, res, next) => {
         res.status(200).json(equipos);
     } catch (error) { next(error); }
 };
+const obtenerInscripciones = async (req, res, next) => {
+    try {
+        const { idTorneo } = req.params; 
+        
+        const inscripciones = await torneosService.obtenerInscripcionesPorTorneo(idTorneo);
+        
+        res.status(200).json(inscripciones); 
+    } catch (error) {
+        next(error);
+    }
+};
+const responderInscripcion = async (req, res, next) => {
+    try {
+        const { idTorneo, idEquipo } = req.params;
+        const { estado_nuevo } = req.body;
+        
+        const resultado = await torneosService.responderInscripcion(idTorneo, idEquipo, estado_nuevo);
+        
+        res.status(200).json({ 
+            mensaje: `Solicitud ${estado_nuevo.toLowerCase()} con éxito`,
+            inscripcion: resultado
+        });
+    } catch (error) {
+        if (error.message.includes('REGLA_TORNEO')) {
+            return res.status(400).json({ error: error.message });
+        }
+        next(error);
+    }
+};
 module.exports = {
     crear, 
-    editar, 
+    editar,
+    obtenerInscripciones,
+    responderInscripcion,
     iniciar, 
     obtenerActivos,
     obtenerElegibles, 

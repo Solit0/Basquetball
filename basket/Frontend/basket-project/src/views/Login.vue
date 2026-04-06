@@ -105,6 +105,10 @@ const handleLogin = async () => {
             router.push('/entrenador')
         } else if (rol === 'arbitro') {
             router.push('/arbitro/dashboard')
+        } else if (rol==='usuario') {
+            router.push('/usuario')
+        } else {
+            error.value = 'Rol de usuario desconocido'
         }
 
     } catch (err) {

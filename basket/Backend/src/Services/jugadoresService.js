@@ -135,8 +135,6 @@ const unirAEquipo = async (datosVinculacion) => {
     if (Number(limiteResult[0].count) >= 15) {
         throw new Error('REGLA_BALONCESTO: Límite de 15 jugadores alcanzado.');
     }
-
-    // 2. Validar que la camiseta no esté en uso por otro jugador activo
     const camisetaResult = await db.select({ id: schema.plantillaEquipo.idJugador })
         .from(schema.plantillaEquipo)
         .where(
@@ -200,6 +198,9 @@ const actualizar = async (id_jugador, datosJugador) => {
     if (posicion !== undefined) updateData.posicion = posicion;
     if (estatura !== undefined) updateData.estatura = estatura;
     if (fecha_nacimiento !== undefined) updateData.fechaNacimiento = fecha_nacimiento;
+    if (Object.keys(updateData).length === 0) {
+        return { id_jugador }; 
+    }
 
     const rows = await db.update(schema.jugadores)
         .set(updateData)
@@ -214,7 +215,6 @@ const actualizarPlantilla = async (id_jugador, id_equipo, datosPlantilla) => {
     
     try {
         return await db.transaction(async (tx) => {
-            
             if (es_capitan) {
                 await tx.update(schema.plantillaEquipo)
                     .set({ esCapitan: false })
@@ -231,8 +231,11 @@ const actualizarPlantilla = async (id_jugador, id_equipo, datosPlantilla) => {
             if (numero_camiseta !== undefined) updateData.numeroCamiseta = numero_camiseta;
             if (es_capitan !== undefined) updateData.esCapitan = es_capitan;
             if (rol_equipo !== undefined) updateData.rolEquipo = rol_equipo;
+            if (Object.keys(updateData).length === 0) {
+                return { id_jugador, id_equipo };
+            }
 
-            const [plantillaActualizada] = await tx.update(schema.plantillaEquipo)
+            const rows = await tx.update(schema.plantillaEquipo)
                 .set(updateData)
                 .where(
                     and(
@@ -243,16 +246,24 @@ const actualizarPlantilla = async (id_jugador, id_equipo, datosPlantilla) => {
                 )
                 .returning();
                 
-            return plantillaActualizada;
+            if (rows.length === 0) {
+                throw new Error("No se encontró al jugador activo en este equipo para actualizar.");
+            }
+                
+            return rows[0];
         });
     } catch (error) {
         if (error.code === '23505') {
-            throw new Error(`El número de camiseta ${numero_camiseta} ya lo usa otro compañero.`);
+            throw new Error(`El número de camiseta ${numero_camiseta} ya lo está usando otro jugador activo en el equipo.`);
         }
-        if (error.message && error.message.includes('REGLA_BALONCESTO')) {
+        if (error.code === '23514' || error.code === '22P02') {
+            throw new Error(`Error de formato en el rol '${rol_equipo}'. Verifica si tu base de datos lo espera en minúsculas.`);
+        }
+        if (error.message) {
             throw error;
         }
-        throw error;
+        
+        throw new Error("Error interno de la base de datos al actualizar la plantilla.");
     }
 };
 

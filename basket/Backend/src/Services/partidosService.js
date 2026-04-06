@@ -1,6 +1,7 @@
+//ruta src/Services/partidosService.js
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, or, desc, asc, sql } = require('drizzle-orm');
+const { eq, and, or, desc, asc, sql, inArray, ne } = require('drizzle-orm');
 const { alias } = require('drizzle-orm/pg-core');
 
 const crearMultiples = async (partidos) => {
@@ -16,11 +17,8 @@ const crearMultiples = async (partidos) => {
         })
         .from(schema.torneos)
         .where(eq(schema.torneos.idTorneo, idTorneo));
-
         if (torneoInfo.length === 0) throw new Error('El torneo no existe.');
-        
         const { fecha_inicio, fecha_fin } = torneoInfo[0];
-
         const formatYYYYMMDD = (d) => {
             const date = new Date(d);
             const year = date.getFullYear();
@@ -28,22 +26,91 @@ const crearMultiples = async (partidos) => {
             const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
-
         const limiteInicio = formatYYYYMMDD(fecha_inicio);
         const limiteFin = formatYYYYMMDD(fecha_fin);
 
+        const arbitrosInvolucrados = new Set();
+        const fechasInvolucradas = new Set();
+        const asignacionesNuevas = [];
+
         for (const p of partidos) {
-            if (!p.id_cancha) {
-                throw new Error(`El equipo local "${p.local_nombre}" no tiene cancha. Asignale una.`);
+            if (!p.id_cancha) throw new Error(`El equipo local "${p.local_nombre}" no tiene cancha. Asignale una.`);
+            
+            if (!p.id_arbitro_principal || !p.id_arbitro_asistente1 || !p.id_arbitro_asistente2) {
+                throw new Error(`Falta asignar la terna arbitral completa para el partido de ${p.local_nombre} vs ${p.visitante_nombre}.`);
             }
-            if (!p.id_arbitro_principal) {
-                throw new Error(`Falta asignar un árbitro para el partido de ${p.local_nombre} vs ${p.visitante_nombre}.`);
+            
+            if (p.id_arbitro_principal === p.id_arbitro_asistente1 || p.id_arbitro_principal === p.id_arbitro_asistente2 || p.id_arbitro_asistente1 === p.id_arbitro_asistente2) {
+                throw new Error(`No puedes asignar a la misma persona en múltiples roles para un mismo partido.`);
             }
 
             if (p.fecha < limiteInicio || p.fecha > limiteFin) {
-                throw new Error(`REGLA_TORNEO: La fecha elegida (${p.fecha}) para ${p.local_nombre} vs ${p.visitante_nombre} está fuera del rango (${limiteInicio} al ${limiteFin}).`);
+                throw new Error(`REGLA TORNEO: La fecha elegida (${p.fecha}) para ${p.local_nombre} vs ${p.visitante_nombre} está fuera del rango.`);
             }
-            
+
+            const arbs = [p.id_arbitro_principal, p.id_arbitro_asistente1, p.id_arbitro_asistente2];
+            arbs.forEach(idArb => {
+                arbitrosInvolucrados.add(idArb);
+                asignacionesNuevas.push({ id_arbitro: idArb, fecha: p.fecha, hora: p.hora });
+            });
+            fechasInvolucradas.add(p.fecha);
+        }
+
+        const arbitrosArr = Array.from(arbitrosInvolucrados);
+        
+        let partidosExistentes = [];
+        if (arbitrosArr.length > 0) {
+            partidosExistentes = await tx.select({
+                fecha: schema.partidos.fecha,
+                hora: schema.partidos.hora,
+                id_principal: schema.partidos.idArbitroPrincipal,
+                id_asistente1: schema.partidos.idArbitroAsistente1,
+                id_asistente2: schema.partidos.idArbitroAsistente2
+            })
+            .from(schema.partidos)
+            .where(
+                and(
+                    ne(schema.partidos.estado, 'Finalizado'), 
+                    or(
+                        inArray(schema.partidos.idArbitroPrincipal, arbitrosArr),
+                        inArray(schema.partidos.idArbitroAsistente1, arbitrosArr),
+                        inArray(schema.partidos.idArbitroAsistente2, arbitrosArr)
+                    )
+                )
+            );
+        }
+
+        const asignacionesGlobales = [...asignacionesNuevas];
+
+        partidosExistentes.forEach(p => {
+            const fechaDBStr = typeof p.fecha === 'string' ? p.fecha.split('T')[0] : p.fecha.toISOString().split('T')[0];
+            if (fechasInvolucradas.has(fechaDBStr)) {
+                if (arbitrosArr.includes(p.id_principal)) asignacionesGlobales.push({ id_arbitro: p.id_principal, fecha: fechaDBStr, hora: p.hora });
+                if (arbitrosArr.includes(p.id_asistente1)) asignacionesGlobales.push({ id_arbitro: p.id_asistente1, fecha: fechaDBStr, hora: p.hora });
+                if (arbitrosArr.includes(p.id_asistente2)) asignacionesGlobales.push({ id_arbitro: p.id_asistente2, fecha: fechaDBStr, hora: p.hora });
+            }
+        });
+
+        const mapaHorarios = {};
+        for (const a of asignacionesGlobales) {
+            const key = `${a.id_arbitro}_${a.fecha}`;
+            if (!mapaHorarios[key]) mapaHorarios[key] = [];
+            mapaHorarios[key].push(new Date(`1970-01-01T${a.hora}`));
+        }
+
+        for (const [key, horarios] of Object.entries(mapaHorarios)) {
+            if (horarios.length > 2) {
+                throw new Error(`REGLA de ARBITRAJE: Uno de los árbitros de la terna esta asignado a más de 2 partidos en la misma fecha en otro torneo.`);
+            }
+            if (horarios.length === 2) {
+                horarios.sort((a, b) => a - b);
+                const diffHoras = (horarios[1] - horarios[0]) / (1000 * 60 * 60);
+                if (diffHoras < 6) {
+                    throw new Error(`REGLA de ARBITRAJE: Uno de los árbitros asignados tendría menos de 6 horas de descanso frente a un partido que ya tiene programado en otro torneo.`);
+                }
+            }
+        }
+        for (const p of partidos) {
             const [nuevoPartido] = await tx.insert(schema.partidos)
                 .values({
                     idTorneo: p.id_torneo,
@@ -53,7 +120,9 @@ const crearMultiples = async (partidos) => {
                     fecha: p.fecha,
                     hora: p.hora,
                     rondaTorneo: p.ronda_torneo,
-                    idArbitroPrincipal: p.id_arbitro_principal
+                    idArbitroPrincipal: p.id_arbitro_principal,
+                    idArbitroAsistente1: p.id_arbitro_asistente1,
+                    idArbitroAsistente2: p.id_arbitro_asistente2
                 })
                 .returning();
                 
@@ -79,6 +148,8 @@ const obtenerPorTorneo = async (id_torneo) => {
         id_equipo_visitante: schema.partidos.idEquipoVisitante,
         id_cancha: schema.partidos.idCancha,
         id_arbitro_principal: schema.partidos.idArbitroPrincipal,
+        id_arbitro_asistente1: schema.partidos.idArbitroAsistente1, 
+        id_arbitro_asistente2: schema.partidos.idArbitroAsistente2, 
         fecha: schema.partidos.fecha,
         hora: schema.partidos.hora,
         ronda_torneo: schema.partidos.rondaTorneo,

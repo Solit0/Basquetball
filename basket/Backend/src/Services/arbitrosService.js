@@ -1,3 +1,4 @@
+//ruta src/Services/arbitrosService.js
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
 const { eq, and, ne, notInArray, desc, asc, count, sql } = require('drizzle-orm');

@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <NavbarEspectador />
-
+    
     <main class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
       <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
@@ -73,6 +73,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import NavbarEspectador from '../../components/NavbarEspectador.vue'
+import AdminSidebar from '@/components/AdminSidebar.vue'
 import { obtenerPartidosPublicosService } from '../../services/partidosService'
 
 const cargando = ref(true)

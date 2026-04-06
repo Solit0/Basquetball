@@ -328,7 +328,7 @@
                     <div v-if="activeTab === 'partidos'" class="animate-fade-in"><GestionPartidos /></div>
                     <div v-if="activeTab === 'gestion-torneos'" class="animate-fade-in"><EditarTorneos /></div>
                     <div v-if="activeTab === 'perfil'" class="animate-fade-in"><AdminPerfil @perfil-actualizado="actualizarNombreNavBar" /></div>
-
+                    <div v-if="activeTab === 'calendario'" class="animate-fade-in"><CalendarioPartidos /></div>
                 </div>
             </main>
         </div>
@@ -354,7 +354,7 @@ import {
 } from '../services/canalService'
 
 import { obtenerUsuariosService, crearUsuarioService } from '../services/usuarioService'
-import { obtenerTorneosActivosService } from '../services/torneosService'
+import { obtenerTorneosActivosService, obtenerInscripcionesPorTorneoService, responderInscripcionService } from '../services/torneosService'
 import { obtenerPartidosPorTorneo } from '../services/partidosService'
 
 const router = useRouter()

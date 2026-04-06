@@ -12,4 +12,6 @@ router.get('/:id/equipos-elegibles', torneosController.obtenerElegibles);
 router.post('/:id/equipos', torneosController.agregarEquipo);
 router.get('/:id/equipos-inscritos', torneosController.obtenerInscritos);
 router.delete('/:id/equipos/:id_equipo', torneosController.removerEquipo);
+router.get('/:idTorneo/inscripciones', torneosController.obtenerInscripciones);
+router.patch('/:idTorneo/equipos/:idEquipo/inscripcion', torneosController.responderInscripcion);
 module.exports = router;

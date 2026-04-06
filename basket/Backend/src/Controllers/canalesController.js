@@ -11,7 +11,6 @@ const obtenerCanales = async (req, res, next) => {
 
 const crearCanal = async (req, res, next) => {
     try {
-        // Validaciones básicas antes de tocar la base de datos
         const { nombre_canal, id_tipo } = req.body;
         
         if (!nombre_canal || !id_tipo) {
