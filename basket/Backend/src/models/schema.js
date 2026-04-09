@@ -261,14 +261,24 @@ const sanciones = pgTable("sanciones", {
     idTorneo: uuid("id_torneo"),
     idPartido: uuid("id_partido"),
     motivo: text("motivo"),
-    fechaInicio: date("fecha_inicio"),
-    fechaFin: date("fecha_fin"),
-    tipoSancion: varchar("tipo_sancion", { length: 50 }),
-    activa: boolean("activa").default(true),
+    tipoSancion: varchar("tipo_sancion"),
+    estadoResolucion: varchar("estado_resolucion").default('Pendiente'),
 }, (table) => [
-    foreignKey({ columns: [table.idJugador], foreignColumns: [jugadores.idJugador], name: "sanciones_id_jugador_fkey" }),
-    foreignKey({ columns: [table.idPartido], foreignColumns: [partidos.idPartido], name: "sanciones_id_partido_fkey" }),
-    foreignKey({ columns: [table.idTorneo], foreignColumns: [torneos.idTorneo], name: "sanciones_id_torneo_fkey" }),
+    foreignKey({
+        columns: [table.idJugador],
+        foreignColumns: [jugadores.idJugador],
+        name: "sanciones_id_jugador_fkey"
+    }),
+    foreignKey({
+        columns: [table.idTorneo],
+        foreignColumns: [torneos.idTorneo],
+        name: "sanciones_id_torneo_fkey"
+    }),
+    foreignKey({
+        columns: [table.idPartido],
+        foreignColumns: [partidos.idPartido],
+        name: "sanciones_id_partido_fkey"
+    })
 ]);
 
 const transmisiones = pgTable("transmisiones", {
@@ -336,7 +346,22 @@ const rosterTorneo = pgTable('roster_torneo', {
         sql`(rol_roster)::text = ANY ((ARRAY['Titular', 'Suplente'])::text[])`
     ),
 ]);
-
+const resolucionesDisciplinarias = pgTable("resoluciones_disciplinarias", {
+    idResolucion: uuid("id_resolucion").defaultRandom().primaryKey().notNull(),
+    idSancion: uuid("id_sancion").notNull().unique(),
+    partidosSuspension: integer("partidos_suspension").default(0),
+    partidosCumplidos: integer("partidos_cumplidos").default(0),
+    montoMulta: numeric("monto_multa", { precision: 10, scale: 2 }).default('0.00'),
+    estado: varchar("estado").default('Activa'),
+    observacionesAdmin: text("observaciones_admin"),
+    fechaResolucion: timestamp("fecha_resolucion", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+    foreignKey({
+        columns: [table.idSancion],
+        foreignColumns: [sanciones.idSancion],
+        name: "resoluciones_disciplinarias_id_sancion_fkey"
+    }).onDelete("cascade")
+]);
 module.exports = {
     roles,
     usuarios,
@@ -359,5 +384,6 @@ module.exports = {
     incidentes,
     evaluacionesArbitro,
     asistenciaPartidos,
-    rosterTorneo
+    rosterTorneo,
+    resolucionesDisciplinarias,
 };

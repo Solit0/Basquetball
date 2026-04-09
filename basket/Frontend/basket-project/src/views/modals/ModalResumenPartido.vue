@@ -103,7 +103,6 @@
         </div>
     </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { obtenerResumenPartidoService } from '../../services/partidosService'
@@ -113,6 +112,7 @@ const props = defineProps({ partido: { type: Object, required: true } })
 const emit = defineEmits(['close'])
 
 const cargando = ref(true)
+
 const resumenData = ref({ anotaciones: [], sanciones: [], informe: '' })
 const listaArbitros = ref([]) 
 
@@ -121,15 +121,24 @@ onMounted(async () => {
         const usuarios = await obtenerUsuariosService()
         listaArbitros.value = usuarios.filter(u => u.rol === 'arbitro')
 
-        resumenData.value = await obtenerResumenPartidoService(props.partido.id_partido)
+        const data = await obtenerResumenPartidoService(props.partido.id_partido)
+        if (data) {
+            resumenData.value = {
+                anotaciones: data.anotaciones || [],
+                sanciones: data.sanciones || [],
+                informe: data.informe || 'No hay informe disponible.'
+            }
+        }
     } catch (error) {
         console.error("Error obteniendo el resumen:", error)
     } finally {
         cargando.value = false
     }
 })
-const anotadoresLocal = computed(() => resumenData.value.anotaciones.filter(a => a.id_equipo === props.partido.id_equipo_local))
-const anotadoresVisitante = computed(() => resumenData.value.anotaciones.filter(a => a.id_equipo === props.partido.id_equipo_visitante))
-const sancionesList = computed(() => resumenData.value.sanciones)
+
+// 🔴 Usamos Optional Chaining (?) por seguridad
+const anotadoresLocal = computed(() => resumenData.value.anotaciones?.filter(a => a.id_equipo === props.partido.id_equipo_local) || [])
+const anotadoresVisitante = computed(() => resumenData.value.anotaciones?.filter(a => a.id_equipo === props.partido.id_equipo_visitante) || [])
+const sancionesList = computed(() => resumenData.value.sanciones || [])
 const informeTexto = computed(() => resumenData.value.informe)
 </script>

@@ -172,6 +172,7 @@ const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
             .limit(1);
         if (partidoInfo.length === 0) throw new Error("Partido no encontrado");
         const idTorneo = partidoInfo[0].idTorneo;
+
         const rosterInfo = await db.select({ idRoster: schema.rosterTorneo.idRoster })
             .from(schema.rosterTorneo)
             .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
@@ -185,6 +186,25 @@ const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
 
         if (rosterInfo.length === 0) throw new Error("El jugador no está en el roster de este torneo");
         const idRoster = rosterInfo[0].idRoster;
+        if (estado === 'Presente') {
+            const suspensionActiva = await db.select()
+                .from(schema.resolucionesDisciplinarias)
+                .innerJoin(schema.sanciones, eq(schema.resolucionesDisciplinarias.idSancion, schema.sanciones.idSancion))
+                .where(
+                    and(
+                        eq(schema.sanciones.idJugador, id_jugador),
+                        eq(schema.sanciones.idTorneo, idTorneo),
+                        eq(schema.resolucionesDisciplinarias.estado, 'Activa'),
+                        sql`${schema.resolucionesDisciplinarias.partidosSuspension} > ${schema.resolucionesDisciplinarias.partidosCumplidos}`
+                    )
+                )
+                .limit(1);
+
+            if (suspensionActiva.length > 0) {
+                throw new Error("Regla_Sancion: No se puede marcar como presente a un jugador con una suspensión activa.");
+            }
+        }
+
         const asistenciaExistente = await db.select()
             .from(schema.asistenciaPartidos)
             .where(
@@ -236,7 +256,15 @@ const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
         apellido: schema.jugadores.apellido,
         numero_camiseta: schema.rosterTorneo.numeroCamiseta, 
         es_capitan: schema.rosterTorneo.esCapitan, 
-        estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Pendiente')`.as('estado_asistencia')
+        estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Pendiente')`.as('estado_asistencia'),
+        esta_suspendido: sql`EXISTS (
+            SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
+              AND s.id_torneo = ${idTorneo}
+              AND rd.estado = 'Activa'
+              AND rd.partidos_suspension > rd.partidos_cumplidos
+        )`.as('esta_suspendido')
     })
     .from(schema.rosterTorneo)
     .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
@@ -252,8 +280,12 @@ const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
         )
     )
     .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
-
-    return rows;
+    return rows.map(jugador => {
+        if (jugador.esta_suspendido) {
+            jugador.estado_asistencia = 'Inhabilitado';
+        }
+        return jugador;
+    });
 };
 
 const actualizarEstadoPartido = async (id_partido, estado) => {
@@ -264,6 +296,7 @@ const actualizarEstadoPartido = async (id_partido, estado) => {
 
     return rows[0];
 };
+
 const obtenerTorneosHistorial = async (id_arbitro) => {
     const rows = await db.select({
         id_torneo: schema.torneos.idTorneo,
@@ -290,6 +323,7 @@ const obtenerTorneosHistorial = async (id_arbitro) => {
 
     return rows;
 };
+
 const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
     const equipoLocal = alias(schema.equipos, 'equipo_local');
     const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
@@ -338,6 +372,7 @@ const obtenerResumenFinalizado = async (id_partido) => {
         .where(eq(schema.partidos.idPartido, id_partido))
         .limit(1);
     const idTorneo = partidoInfo[0]?.idTorneo;
+
     const informeRows = await db.select({ contenido: schema.informesPartido.contenido })
         .from(schema.informesPartido)
         .where(eq(schema.informesPartido.idPartido, id_partido))

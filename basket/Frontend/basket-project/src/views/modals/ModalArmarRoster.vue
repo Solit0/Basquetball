@@ -51,7 +51,10 @@
                 <div v-else class="space-y-4">
                     <div v-for="jugador in jugadores" :key="jugador.id_jugador" 
                          class="bg-white border rounded-xl p-4 transition-all shadow-sm"
-                         :class="jugador.convocado ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200 opacity-70 hover:opacity-100'">
+                         :class="[
+                             jugador.esta_suspendido ? 'border-red-300 bg-red-50 opacity-90' : 
+                             jugador.convocado ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200 opacity-70 hover:opacity-100'
+                         ]">
                         
                         <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
                             
@@ -62,15 +65,26 @@
                                 </div>
                                 <div>
                                     <p class="font-bold text-gray-900 text-lg flex items-center">
-                                        {{ jugador.nombre }} {{ jugador.apellido }}
+                                        <span :class="jugador.esta_suspendido ? 'line-through text-red-800' : ''">
+                                            {{ jugador.nombre }} {{ jugador.apellido }}
+                                        </span>
+                                        
                                         <span v-if="jugador.errorEdad" class="ml-2 bg-red-100 text-red-700 text-[10px] font-black px-2 py-0.5 rounded uppercase flex items-center" :title="jugador.errorEdad">
                                             Fuera de Edad ({{ jugador.edadCalculada }} años)
                                         </span>
+                                        
+                                        <span v-else-if="jugador.esta_suspendido" class="ml-2 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase shadow-sm flex items-center">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                            SUSPENDIDO POR LA LIGA
+                                        </span>
+
                                         <span v-else class="ml-2 text-xs text-gray-400 font-medium">
                                             {{ jugador.edadCalculada }} años
                                         </span>
                                     </p>
-                                    <p class="text-sm text-gray-500 font-medium">{{ jugador.posicion || 'Posición no definida' }} | {{ jugador.estatura ? jugador.estatura + ' m' : 'Estatura N/A' }}</p>
+                                    <p class="text-sm font-medium" :class="jugador.esta_suspendido ? 'text-red-600 font-bold' : 'text-gray-500'">
+                                        {{ jugador.esta_suspendido ? 'No puede alinear como titular hasta cumplir su sanción.' : (jugador.posicion || 'Posición no definida') + ' | ' + (jugador.estatura ? jugador.estatura + ' m' : 'Estatura N/A') }}
+                                    </p>
                                 </div>
                             </div>
 
@@ -84,8 +98,13 @@
 
                                 <div class="flex items-center bg-white border border-gray-300 rounded overflow-hidden">
                                     <button type="button" @click="hacerTitular(jugador)" 
-                                            :class="jugador.rol_roster === 'Titular' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-500 hover:bg-gray-100'"
-                                            class="px-3 py-1.5 text-xs transition-colors">
+                                            :disabled="jugador.esta_suspendido"
+                                            :class="[
+                                                jugador.rol_roster === 'Titular' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-500 hover:bg-gray-100',
+                                                jugador.esta_suspendido ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-400' : ''
+                                            ]"
+                                            class="px-3 py-1.5 text-xs transition-colors"
+                                            :title="jugador.esta_suspendido ? 'El jugador está suspendido' : ''">
                                         Titular
                                     </button>
                                     <button type="button" @click="jugador.rol_roster = 'Suplente'" 
@@ -107,7 +126,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white px-6 py-4 border-t border-gray-200 flex items-center justify-between shrink-0">
+                <div class="bg-white px-6 py-4 border-t border-gray-200 flex items-center justify-between shrink-0 mt-6 rounded-xl">
                     <p class="text-xs text-gray-500 italic">* Revisa cuidadosamente tu alineación. Una vez que el torneo inicie, el roster se bloqueará.</p>
                     <div class="flex space-x-3">
                         <button type="button" @click="close" class="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
@@ -124,6 +143,7 @@
         </div>
     </div>
 </template>
+
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { obtenerEquipoDeEntrenadorService } from '../../services/equiposService'
@@ -133,7 +153,7 @@ const props = defineProps({
     show: Boolean,
     torneo: { type: Object, required: true },
     saving: { type: Boolean, default: false },
-    rosterPrevio: { type: Array, default: () => [] } // 🔴 AHORA RECIBIMOS EL ROSTER ANTERIOR
+    rosterPrevio: { type: Array, default: () => [] }
 })
 const emit = defineEmits(['close', 'save'])
 const jugadores = ref([])
@@ -180,22 +200,19 @@ const cargarBaseDatosClub = async () => {
                 const edad = calcularEdadEnFecha(j.fecha_nacimiento, props.torneo.fecha_inicio);
                 const errorEdad = verificarReglasEdad(edad, props.torneo.categoria);
                 
-                // 🔴 BUSCAMOS SI ESTE JUGADOR YA ESTABA EN EL ROSTER PREVIO
                 const jugadorEnRoster = props.rosterPrevio.find(rp => rp.id_jugador === j.id_jugador);
                 
                 if (jugadorEnRoster) {
-                    // Si estaba, cargamos sus datos de la base de datos de la inscripción
                     return {
                         ...j,
                         convocado: true,
                         numero_camiseta: jugadorEnRoster.numero_camiseta,
-                        rol_roster: jugadorEnRoster.rol_roster,
+                        rol_roster: j.esta_suspendido ? 'Suplente' : jugadorEnRoster.rol_roster, // 🔴 Forzamos suplente si está suspendido
                         es_capitan: jugadorEnRoster.es_capitan,
                         edadCalculada: edad,
                         errorEdad: errorEdad
                     };
                 } else {
-                    // Si no estaba, lo iniciamos en blanco
                     return {
                         ...j,
                         convocado: false,
@@ -215,7 +232,6 @@ const cargarBaseDatosClub = async () => {
     }
 }
 
-// Escuchamos el prop "show" para cargar los datos cada vez que se abre el modal
 watch(() => props.show, (newVal) => {
     if (newVal) {
         cargarBaseDatosClub();
@@ -232,6 +248,12 @@ const manejarConvocatoria = (jugador) => {
 
 const hacerTitular = (jugador) => {
     if (jugador.rol_roster === 'Titular') return;
+    
+    // 🔴 Bloqueo principal
+    if (jugador.esta_suspendido) {
+        return alert(`SANCIÓN DISCIPLINARIA:\nEste jugador no puede alinear como Titular debido a una suspensión vigente dictaminada por la liga.`);
+    }
+
     if (jugador.errorEdad) {
         return alert(`REGLA DE COMPETICIÓN:\nNo puedes alinear de Titular a este jugador porque rompe las reglas de edad del torneo (${jugador.errorEdad}).`);
     }
@@ -296,6 +318,7 @@ const close = () => {
     emit('close')
 }
 </script>
+
 <style scoped>
 .animate-fade-in { animation: fadeIn 0.3s ease-out; }
 @keyframes fadeIn {

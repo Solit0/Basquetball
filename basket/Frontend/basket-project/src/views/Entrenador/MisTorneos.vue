@@ -130,22 +130,42 @@
                         <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         Mi Roster Oficial
                     </h4>
-                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold">{{ miRoster.length }} Convocados</span>
+                    <span v-if="!cargandoRoster" class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold">{{ miRoster.length }} Convocados</span>
                 </div>
                 
-                <div v-if="miRoster.length === 0" class="text-center py-6 text-gray-500 italic">
-                    Cargando tu roster...
+                <div v-if="cargandoRoster" class="text-center py-8 text-indigo-500">
+                    <svg class="animate-spin h-8 w-8 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <p class="italic text-sm font-bold">Cargando tu roster...</p>
                 </div>
+                
+                <div v-else-if="miRoster.length === 0" class="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                    <p class="font-medium">Tu equipo aún no tiene un roster oficial aprobado para este torneo.</p>
+                </div>
+                
                 <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div v-for="jugador in miRoster" :key="jugador.id_jugador" class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <div class="w-8 h-8 rounded bg-indigo-600 text-white flex items-center justify-center font-black text-sm mr-3 shadow-sm">
+                    <div v-for="jugador in miRoster" :key="jugador.id_jugador" 
+                         class="flex items-center p-3 rounded-lg border transition-all"
+                         :class="jugador.esta_suspendido ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-gray-50 border-gray-100'">
+                        
+                        <div class="w-8 h-8 rounded flex items-center justify-center font-black text-sm mr-3 shadow-sm border"
+                             :class="jugador.esta_suspendido ? 'bg-red-100 text-red-800 border-red-200' : 'bg-indigo-600 text-white border-indigo-700'">
                             {{ jugador.numero_camiseta }}
                         </div>
+                        
                         <div class="flex-1">
-                            <p class="font-bold text-gray-900 text-sm truncate">{{ jugador.nombre }} {{ jugador.apellido }}</p>
-                            <p class="text-[10px] font-black uppercase text-gray-500 tracking-wider">
-                                <span :class="jugador.rol_roster === 'Titular' ? 'text-indigo-600' : 'text-gray-400'">{{ jugador.rol_roster }}</span>
-                                <span v-if="jugador.es_capitan" class="ml-1 text-yellow-600">(© CAPITÁN)</span>
+                            <p class="font-bold text-sm truncate" :class="jugador.esta_suspendido ? 'text-red-900 line-through' : 'text-gray-900'">
+                                {{ jugador.nombre }} {{ jugador.apellido }}
+                            </p>
+                            
+                            <p class="text-[10px] font-black uppercase tracking-wider mt-0.5">
+                                <span v-if="jugador.esta_suspendido" class="text-red-600 flex items-center">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                    INHABILITADO
+                                </span>
+                                <span v-else>
+                                    <span :class="jugador.rol_roster === 'Titular' ? 'text-indigo-600' : 'text-gray-400'">{{ jugador.rol_roster }}</span>
+                                    <span v-if="jugador.es_capitan" class="ml-1 text-yellow-600">(© CAPITÁN)</span>
+                                </span>
                             </p>
                         </div>
                     </div>
@@ -186,7 +206,7 @@
                 </div>
             </div>
 
-            </div>
+        </div>
 
         <div v-if="showScoutingModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
@@ -208,20 +228,28 @@
                         <svg class="animate-spin h-8 w-8 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <p class="font-bold text-sm">Obteniendo datos del rival...</p>
                     </div>
+                    
                     <div v-else-if="rosterScouting.length === 0" class="py-12 text-center text-gray-500 border border-dashed border-gray-300 rounded-xl bg-white">
-                        <p>El equipo aún no ha hecho público su roster o no tiene jugadores registrados.</p>
+                        <p>El equipo aún no ha hecho público su roster oficial o no tiene jugadores aprobados.</p>
                     </div>
+                    
                     <div v-else class="space-y-3">
-                        <div v-for="jugador in rosterScouting" :key="jugador.id_jugador" class="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center shadow-sm">
+                        <div v-for="jugador in rosterScouting" :key="jugador.id_jugador" 
+                             class="bg-white border rounded-lg p-4 flex justify-between items-center shadow-sm"
+                             :class="jugador.esta_suspendido ? 'border-red-200 bg-red-50' : 'border-gray-200'">
                             <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black mr-4">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-black mr-4"
+                                     :class="jugador.esta_suspendido ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'">
+                                    {{ jugador.numero_camiseta || '#' }}
                                 </div>
                                 <div>
-                                    <p class="font-bold text-gray-900">{{ jugador.nombre }} {{ jugador.apellido }}</p>
+                                    <p class="font-bold text-gray-900" :class="{'line-through text-red-800' : jugador.esta_suspendido}">
+                                        {{ jugador.nombre }} {{ jugador.apellido }}
+                                    </p>
+                                    <p v-if="jugador.esta_suspendido" class="text-[10px] font-black text-red-600 uppercase mt-0.5">Sancionado</p>
                                 </div>
                             </div>
-                            <span v-if="jugador.es_capitan" class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded border border-yellow-200 flex items-center">
+                            <span v-if="jugador.es_capitan && !jugador.esta_suspendido" class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded border border-yellow-200 flex items-center">
                                 © Capitán
                             </span>
                         </div>
@@ -237,7 +265,6 @@
 import { ref, onMounted } from 'vue'
 import { obtenerTorneosDeEquipoService, obtenerEquiposInscritosService } from '../../services/torneosService' 
 import { obtenerPartidosPorTorneo } from '../../services/partidosService'
-// 🔴 IMPORTAMOS LOS SERVICIOS DE ROSTER
 import { obtenerMiRosterService, obtenerRosterPublicoService } from '../../services/inscripcionesService'
 
 const idUsuario = localStorage.getItem('usuario_id') 
@@ -248,8 +275,9 @@ const torneoSeleccionado = ref(null)
 const equiposRivales = ref([])
 const partidosTorneo = ref([])
 
-// 🔴 NUEVAS VARIABLES PARA ROSTERS
 const miRoster = ref([])
+const cargandoRoster = ref(false) 
+
 const showScoutingModal = ref(false)
 const equipoScoutingSeleccionado = ref(null)
 const rosterScouting = ref([])
@@ -262,11 +290,11 @@ const reglasAceptadas = ref(false)
 onMounted(async () => {
     try {
         if (!idUsuario) return;
-        // Asumiendo que el servicio modificado ahora devuelve t.estado_inscripcion
         const data = await obtenerTorneosDeEquipoService(idUsuario)
         torneos.value = data
         
-        if (data.length > 0) {
+        // Asignación inicial por si acaso, pero la haremos dinámica más abajo
+        if (data.length > 0 && data[0].id_equipo) {
             miEquipoId.value = data[0].id_equipo
         }
     } catch (error) {
@@ -280,6 +308,11 @@ const haAceptadoReglas = (idTorneo) => {
 }
 
 const intentarSeleccionarTorneo = (torneo) => {
+    // 🔴 SOLUCIÓN 1: Actualizamos el ID de "Mi Equipo" dinámicamente según el torneo clickeado
+    if (torneo.id_equipo) {
+        miEquipoId.value = torneo.id_equipo;
+    }
+
     if (haAceptadoReglas(torneo.id_torneo)) {
         cargarDetallesTorneo(torneo);
     } else {
@@ -308,22 +341,33 @@ const cargarDetallesTorneo = async (torneo) => {
     torneoSeleccionado.value = torneo
     equiposRivales.value = []
     partidosTorneo.value = []
-    miRoster.value = [] // Limpiamos el roster anterior
+    miRoster.value = [] 
     
+    cargandoRoster.value = true; 
+
     try {
-        // Cargar equipos y partidos
         equiposRivales.value = await obtenerEquiposInscritosService(torneo.id_torneo)
         partidosTorneo.value = await obtenerPartidosPorTorneo(torneo.id_torneo)
         
-        // 🔴 Cargar MI roster para mostrarlo en los detalles
-        const dataRoster = await obtenerMiRosterService(torneo.id_torneo, idUsuario)
+        // 🔴 SOLUCIÓN 2: EL FALLBACK DE SEGURIDAD
+        console.log("Intentando obtener roster privado...");
+        let dataRoster = await obtenerMiRosterService(torneo.id_torneo, idUsuario)
+        
+        // Si el roster privado falla o viene vacío, pero sabemos nuestro ID de equipo, usamos el público (Scouting)
+        if ((!dataRoster || dataRoster.length === 0) && miEquipoId.value) {
+            console.warn("Roster privado no encontrado. Forzando carga a través de Roster Público...");
+            dataRoster = await obtenerRosterPublicoService(torneo.id_torneo, miEquipoId.value);
+        }
+
         miRoster.value = dataRoster || []
+
     } catch (error) {
-        console.error("Error cargando detalles o partidos:", error)
+        console.error("Error crítico cargando detalles del torneo:", error)
+    } finally {
+        cargandoRoster.value = false;
     }
 }
 
-// 🔴 FUNCIÓN PARA ABRIR EL MODAL DE SCOUTING Y CARGAR AL RIVAL
 const abrirScouting = async (equipo) => {
     equipoScoutingSeleccionado.value = equipo;
     showScoutingModal.value = true;

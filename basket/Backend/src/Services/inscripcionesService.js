@@ -174,32 +174,50 @@ const obtenerMisInscripciones = async (id_entrenador) => {
     .from(schema.inscripciones)
     .where(eq(schema.inscripciones.idEquipo, equipo[0].id_equipo));
 };
-const obtenerMiRoster = async (id_entrenador, id_torneo) => { // Asegúrate de tener los parámetros correctos según tu controlador
-    const equipoResult = await db.select({ id_equipo: schema.equipos.idEquipo })
-        .from(schema.equipos)
-        .where(and(eq(schema.equipos.idEntrenador, id_entrenador), eq(schema.equipos.activo, true))).limit(1);
-    
-    if (equipoResult.length === 0) return [];
+const obtenerMiRoster = async (id_torneo, id_entrenador) => {
+    const inscripcionInfo = await db.select({
+        id_inscripcion: schema.inscripciones.idInscripcion,
+        id_equipo: schema.inscripciones.idEquipo
+    })
+    .from(schema.inscripciones)
+    .innerJoin(schema.equipos, eq(schema.inscripciones.idEquipo, schema.equipos.idEquipo))
+    .where(
+        and(
+            eq(schema.inscripciones.idTorneo, id_torneo),
+            eq(schema.equipos.idEntrenador, id_entrenador)
+        )
+    )
+    .limit(1);
 
-    const inscripcionResult = await db.select({ idInscripcion: schema.inscripciones.idInscripcion })
-        .from(schema.inscripciones)
-        .where(and(eq(schema.inscripciones.idTorneo, id_torneo), eq(schema.inscripciones.idEquipo, equipoResult[0].id_equipo))).limit(1);
+    if (inscripcionInfo.length === 0) return [];
     
-    if (inscripcionResult.length === 0) return [];
+    const idInscripcion = inscripcionInfo[0].id_inscripcion;
+    const idEquipo = inscripcionInfo[0].id_equipo;
 
-    return await db.select({
+    const rows = await db.select({
         id_jugador: schema.rosterTorneo.idJugador,
+        nombre: schema.jugadores.nombre,
+        apellido: schema.jugadores.apellido,
+        posicion: schema.jugadores.posicion,
         numero_camiseta: schema.rosterTorneo.numeroCamiseta,
         rol_roster: schema.rosterTorneo.rolRoster,
         es_capitan: schema.rosterTorneo.esCapitan,
-        numero_camiseta: schema.rosterTorneo.numeroCamiseta,
-        nombre: schema.jugadores.nombre,           
-        apellido: schema.jugadores.apellido,       
-        posicion: schema.jugadores.posicion        
+        id_equipo: sql`${idEquipo}`.as('id_equipo'), 
+        esta_suspendido: sql`EXISTS (
+            SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
+              AND s.id_torneo = ${id_torneo}
+              AND rd.estado = 'Activa'
+              AND rd.partidos_suspension > rd.partidos_cumplidos
+        )`.as('esta_suspendido')
     })
     .from(schema.rosterTorneo)
-    .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador)) 
-    .where(eq(schema.rosterTorneo.idInscripcion, inscripcionResult[0].idInscripcion));
+    .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
+    .where(eq(schema.rosterTorneo.idInscripcion, idInscripcion))
+    .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
+
+    return rows;
 };
 
 const editarRoster = async (id_torneo, id_entrenador, roster_actualizado) => {

@@ -295,14 +295,13 @@
 
     </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import NavbarEspectador from '../../components/NavbarEspectador.vue'
 
 // Importamos los servicios de partidos
 import { obtenerPartidosPublicosService, obtenerFichaTecnicaPublicaService } from '../../services/partidosService'
-// 🔴 IMPORTAMOS EL SERVICIO DE ROSTERS PÚBLICOS
+// IMPORTAMOS EL SERVICIO DE ROSTERS PÚBLICOS
 import { obtenerRosterPublicoService } from '../../services/inscripcionesService'
 
 const tabActiva = ref('proximos')
@@ -314,7 +313,7 @@ const modalAbierto = ref(false)
 const cargandoFicha = ref(false)
 const fichaActual = ref(null)
 
-// 🔴 Variables del Modal de Previa (Rosters)
+// Variables del Modal de Previa (Rosters)
 const modalRosterAbierto = ref(false)
 const cargandoRosters = ref(false)
 const partidoRosterActual = ref(null)
@@ -377,10 +376,13 @@ const abrirRostersPartido = async (partido) => {
     rosterVisitante.value = [];
 
     try {
-        // Ahora usamos exactamente los nombres de las propiedades que arroja la base de datos
+        // 🔴 DEFENSA: Nos aseguramos de capturar el ID sin importar cómo se llame la columna
+        const idLocal = partido.id_equipo_local || partido.id_local;
+        const idVisitante = partido.id_equipo_visitante || partido.id_visitante;
+
         const [resLocal, resVisitante] = await Promise.all([
-            obtenerRosterPublicoService(partido.id_torneo, partido.id_local),
-            obtenerRosterPublicoService(partido.id_torneo, partido.id_visitante)
+            obtenerRosterPublicoService(partido.id_torneo, idLocal),
+            obtenerRosterPublicoService(partido.id_torneo, idVisitante)
         ]);
         
         rosterLocal.value = resLocal || [];
