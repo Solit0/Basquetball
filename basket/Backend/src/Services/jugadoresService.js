@@ -1,6 +1,6 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, ne, sql, count, notExists } = require('drizzle-orm');
+const { eq, and, sql, count, notExists } = require('drizzle-orm');
 
 const obtenerPorEquipo = async (id_equipo) => {
     const rows = await db.select({
@@ -10,10 +10,7 @@ const obtenerPorEquipo = async (id_equipo) => {
         posicion: schema.jugadores.posicion,
         estatura: schema.jugadores.estatura,
         fecha_nacimiento: schema.jugadores.fechaNacimiento,
-        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-        es_capitan: schema.plantillaEquipo.esCapitan,
-        activo: schema.plantillaEquipo.activo,
-        rol_equipo: schema.plantillaEquipo.rolEquipo
+        activo: schema.plantillaEquipo.activo
     })
     .from(schema.jugadores)
     .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
@@ -23,7 +20,7 @@ const obtenerPorEquipo = async (id_equipo) => {
             eq(schema.plantillaEquipo.activo, true)
         )
     )
-    .orderBy(schema.plantillaEquipo.numeroCamiseta);
+    .orderBy(schema.jugadores.nombre); 
 
     return rows;
 };
@@ -51,7 +48,7 @@ const obtenerLibres = async () => {
 };
 
 const crear = async (datosJugador) => {
-    const { nombre, apellido, posicion, estatura, fecha_nacimiento, id_equipo, numero_camiseta, es_capitan, rol_equipo } = datosJugador;
+    const { nombre, apellido, posicion, estatura, fecha_nacimiento, id_equipo } = datosJugador;
     
     try {
         return await db.transaction(async (tx) => {
@@ -65,24 +62,8 @@ const crear = async (datosJugador) => {
                     )
                 );
             
-            if (Number(limiteResult[0].count) >= 15) {
-                throw new Error('REGLA_BALONCESTO: El equipo ya alcanzó el límite máximo de 15 jugadores.');
-            }
-
-            if (es_capitan) {
-                const capitanResult = await tx.select({ id: schema.plantillaEquipo.idJugador })
-                    .from(schema.plantillaEquipo)
-                    .where(
-                        and(
-                            eq(schema.plantillaEquipo.idEquipo, id_equipo),
-                            eq(schema.plantillaEquipo.esCapitan, true),
-                            eq(schema.plantillaEquipo.activo, true)
-                        )
-                    );
-                
-                if (capitanResult.length > 0) {
-                    throw new Error('REGLA_BALONCESTO: El equipo ya tiene un capitán. Debes editar al actual y quitarle la capitanía antes de asignársela a alguien más.');
-                }
+            if (Number(limiteResult[0].count) >= 20) {
+                throw new Error('REGLA_BALONCESTO: El club ya alcanzó el límite máximo de 20 jugadores en su base de datos.');
             }
             
             const [nuevoJugador] = await tx.insert(schema.jugadores)
@@ -99,10 +80,7 @@ const crear = async (datosJugador) => {
                 .values({
                     idEquipo: id_equipo,
                     idJugador: nuevoJugador.id_jugador,
-                    numeroCamiseta: numero_camiseta,
-                    esCapitan: es_capitan || false,
-                    activo: true,
-                    rolEquipo: rol_equipo || 'Suplente'
+                    activo: true
                 })
                 .returning();
 
@@ -110,18 +88,31 @@ const crear = async (datosJugador) => {
         });
 
     } catch (error) {
-        if (error.code === '23505') { 
-            throw new Error(`REGLA_BALONCESTO: El número de camiseta ${numero_camiseta} ya está en uso en el equipo.`);
+        console.error("\n====== DETALLE DEL ERROR DE BASE DE DATOS ======");
+        console.error("Mensaje principal:", error.message);
+        if (error.cause) {
+            console.error("Causa (PostgresError):", error.cause.message);
+            console.error("Código de error Postgres (Code):", error.cause.code);
+            console.error("Detalle (Detail):", error.cause.detail);
+            console.error("Restricción (Constraint):", error.cause.constraint);
+            console.error("Tabla afectada:", error.cause.table);
+            console.error("Columna afectada:", error.cause.column);
         }
+        if (error.detail) console.error("Detail directo:", error.detail);
+        if (error.code) console.error("Code directo:", error.code);
+
+        console.error("======================================================\n");
+
         if (error.message.includes('REGLA_BALONCESTO')) {
             throw error;
         }
-        throw error;
+        const mensajeReal = error.cause?.message || error.detail || error.message;
+        throw new Error(`Error exacto de Postgres: ${mensajeReal}`);
     }
 };
 
 const unirAEquipo = async (datosVinculacion) => {
-    const { id_jugador, id_equipo, numero_camiseta, es_capitan, rol_equipo } = datosVinculacion;
+    const { id_jugador, id_equipo } = datosVinculacion;
     
     const limiteResult = await db.select({ count: count() })
         .from(schema.plantillaEquipo)
@@ -132,57 +123,19 @@ const unirAEquipo = async (datosVinculacion) => {
             )
         );
     
-    if (Number(limiteResult[0].count) >= 15) {
-        throw new Error('REGLA_BALONCESTO: Límite de 15 jugadores alcanzado.');
-    }
-
-    // 2. Validar que la camiseta no esté en uso por otro jugador activo
-    const camisetaResult = await db.select({ id: schema.plantillaEquipo.idJugador })
-        .from(schema.plantillaEquipo)
-        .where(
-            and(
-                eq(schema.plantillaEquipo.idEquipo, id_equipo),
-                eq(schema.plantillaEquipo.numeroCamiseta, numero_camiseta),
-                eq(schema.plantillaEquipo.activo, true)
-            )
-        );
-        
-    if (camisetaResult.length > 0) {
-        throw new Error(`REGLA_BALONCESTO: Camiseta ${numero_camiseta} en uso.`);
-    }
-
-    if (es_capitan) {
-        const capitanResult = await db.select({ id: schema.plantillaEquipo.idJugador })
-            .from(schema.plantillaEquipo)
-            .where(
-                and(
-                    eq(schema.plantillaEquipo.idEquipo, id_equipo),
-                    eq(schema.plantillaEquipo.esCapitan, true),
-                    eq(schema.plantillaEquipo.activo, true)
-                )
-            );
-        
-        if (capitanResult.length > 0) {
-            throw new Error('REGLA_BALONCESTO: El equipo ya tiene un capitán. Debes editar al actual y quitarle la capitanía antes de asignársela a alguien más.');
-        }
+    if (Number(limiteResult[0].count) >= 20) {
+        throw new Error('REGLA_BALONCESTO: Límite global de 20 jugadores alcanzado.');
     }
 
     const rows = await db.insert(schema.plantillaEquipo)
         .values({
             idEquipo: id_equipo,
             idJugador: id_jugador,
-            numeroCamiseta: numero_camiseta,
-            esCapitan: es_capitan || false,
-            activo: true,
-            rolEquipo: rol_equipo || 'Suplente'
+            activo: true
         })
         .onConflictDoUpdate({
-            
             target: [schema.plantillaEquipo.idEquipo, schema.plantillaEquipo.idJugador],
             set: {
-                numeroCamiseta: numero_camiseta,
-                esCapitan: es_capitan || false,
-                rolEquipo: rol_equipo || 'Suplente',
                 activo: true
             }
         })
@@ -200,6 +153,10 @@ const actualizar = async (id_jugador, datosJugador) => {
     if (posicion !== undefined) updateData.posicion = posicion;
     if (estatura !== undefined) updateData.estatura = estatura;
     if (fecha_nacimiento !== undefined) updateData.fechaNacimiento = fecha_nacimiento;
+    
+    if (Object.keys(updateData).length === 0) {
+        return { id_jugador }; 
+    }
 
     const rows = await db.update(schema.jugadores)
         .set(updateData)
@@ -210,58 +167,14 @@ const actualizar = async (id_jugador, datosJugador) => {
 };
 
 const actualizarPlantilla = async (id_jugador, id_equipo, datosPlantilla) => {
-    const { numero_camiseta, es_capitan, rol_equipo } = datosPlantilla;
-    
-    try {
-        return await db.transaction(async (tx) => {
-            
-            if (es_capitan) {
-                await tx.update(schema.plantillaEquipo)
-                    .set({ esCapitan: false })
-                    .where(
-                        and(
-                            eq(schema.plantillaEquipo.idEquipo, id_equipo),
-                            ne(schema.plantillaEquipo.idJugador, id_jugador),
-                            eq(schema.plantillaEquipo.activo, true)
-                        )
-                    );
-            }
-
-            const updateData = {};
-            if (numero_camiseta !== undefined) updateData.numeroCamiseta = numero_camiseta;
-            if (es_capitan !== undefined) updateData.esCapitan = es_capitan;
-            if (rol_equipo !== undefined) updateData.rolEquipo = rol_equipo;
-
-            const [plantillaActualizada] = await tx.update(schema.plantillaEquipo)
-                .set(updateData)
-                .where(
-                    and(
-                        eq(schema.plantillaEquipo.idJugador, id_jugador),
-                        eq(schema.plantillaEquipo.idEquipo, id_equipo),
-                        eq(schema.plantillaEquipo.activo, true)
-                    )
-                )
-                .returning();
-                
-            return plantillaActualizada;
-        });
-    } catch (error) {
-        if (error.code === '23505') {
-            throw new Error(`El número de camiseta ${numero_camiseta} ya lo usa otro compañero.`);
-        }
-        if (error.message && error.message.includes('REGLA_BALONCESTO')) {
-            throw error;
-        }
-        throw error;
-    }
+    return { id_jugador, id_equipo, mensaje: "Actualización global delegada al roster del torneo." };
 };
 
 const eliminar = async (id_jugador, id_equipo) => {
     const rows = await db.update(schema.plantillaEquipo)
         .set({
             activo: false,
-            fechaSalida: sql`CURRENT_DATE`,
-            esCapitan: false
+            fechaSalida: sql`CURRENT_DATE`
         })
         .where(
             and(
@@ -273,6 +186,7 @@ const eliminar = async (id_jugador, id_equipo) => {
         
     return rows[0];
 };
+
 module.exports = {
     obtenerPorEquipo,
     obtenerLibres,

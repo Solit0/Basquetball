@@ -202,7 +202,7 @@
                             <label class="block text-xs font-bold text-gray-700 mb-1">Reglamento General</label>
                             <textarea v-model="formReglamentos.general" rows="3" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="w-full px-4 py-2 border border-gray-300 rounded-md bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none text-sm"></textarea>
                         </div>
-                        
+                        <!--Reclutar Equipos Elegibles-->
                         <div>
                             <label class="block text-xs font-bold text-gray-700 mb-1">Sanciones Disciplinarias</label>
                             <textarea v-model="formReglamentos.sanciones" rows="2" :disabled="torneoSeleccionado.estado !== 'En inscripción'" class="w-full px-4 py-2 border border-gray-300 rounded-md bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none text-sm"></textarea>
@@ -232,13 +232,13 @@
             <div class="bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 p-6 h-fit max-h-[850px] overflow-y-auto">
                 <div class="flex justify-between items-center mb-6 border-b border-indigo-100 pb-4">
                     <div>
-                        <h3 class="text-xl font-bold text-indigo-900">Equipos Participantes</h3>
+                        <h3 class="text-xl font-bold text-indigo-900">Solicitudes de Inscripción</h3>
                         <p class="text-sm text-indigo-700 font-medium mt-1">Estado: {{ torneoSeleccionado.estado }}</p>
                     </div>
                     <div class="bg-white px-4 py-2 rounded-lg border border-indigo-200 text-center shadow-sm">
-                        <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Inscritos</p>
-                        <p class="text-3xl font-black" :class="torneoSeleccionado.equipos_inscritos == form.numero_equipos ? 'text-green-600' : 'text-indigo-700'">
-                            {{ torneoSeleccionado.equipos_inscritos }} / {{ form.numero_equipos }}
+                        <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Aprobados</p>
+                        <p class="text-3xl font-black" :class="equiposAprobados.length == form.numero_equipos ? 'text-green-600' : 'text-indigo-700'">
+                            {{ equiposAprobados.length }} / {{ form.numero_equipos }}
                         </p>
                     </div>
                 </div>
@@ -249,62 +249,125 @@
                     <p class="text-sm text-gray-500 font-medium">Las inscripciones están cerradas. Puedes administrar el calendario desde la "Gestión de Partidos".</p>
                 </div>
 
-                <div v-else-if="torneoSeleccionado.equipos_inscritos >= form.numero_equipos" class="p-6 bg-green-100 rounded-xl border border-green-300 text-center shadow-inner">
+                <div v-else-if="equiposAprobados.length >= form.numero_equipos" class="p-6 bg-green-100 rounded-xl border border-green-300 text-center shadow-inner">
                     <h4 class="text-lg font-black text-green-800 mb-1">¡Cupo lleno!</h4>
                     <p class="text-sm text-green-700">El torneo cuenta con todos los equipos requeridos. Ya puedes iniciarlo en el botón superior.</p>
                 </div>
 
                 <div v-else>
-                    <h4 class="text-xs font-black text-indigo-500 uppercase mb-3 tracking-wider">Reclutar Equipos Elegibles:</h4>
+                    <h4 class="text-xs font-black text-amber-600 uppercase mb-3 tracking-wider flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Solicitudes Pendientes ({{ solicitudesPendientes.length }})
+                    </h4>
                     
-                    <div v-if="equiposElegibles.length === 0" class="bg-white/60 border border-indigo-100 p-6 rounded-lg text-center text-sm text-indigo-500 italic">
-                        No hay equipos activos y libres que coincidan con esta categoría.
+                    <div v-if="solicitudesPendientes.length === 0" class="bg-white/60 border border-amber-100 p-6 rounded-lg text-center text-sm text-amber-600 italic mb-6">
+                        No hay solicitudes de inscripción pendientes por revisar.
                     </div>
                     
-                    <ul class="space-y-3">
-                        <li v-for="eq in equiposElegibles" :key="eq.id_equipo" 
-                            class="bg-white p-4 rounded-lg flex justify-between items-center shadow-sm border border-indigo-100 hover:border-indigo-300 transition-colors">
+                    <ul class="space-y-3 mb-6">
+                        <li v-for="sol in solicitudesPendientes" :key="'pend_'+sol.id_equipo" 
+                            class="bg-white p-4 rounded-lg flex flex-col md:flex-row justify-between items-center shadow-sm border border-amber-200 hover:border-amber-400 transition-colors gap-4">
                             <div>
-                                <p class="font-bold text-gray-900 leading-tight">{{ eq.nombre_oficial }} <span class="text-xs text-gray-500 font-normal">({{ eq.siglas }})</span></p>
+                                <p class="font-bold text-gray-900 leading-tight">{{ sol.nombre_oficial }} <span class="text-xs text-gray-500 font-normal">({{ sol.siglas }})</span></p>
                                 <div class="flex items-center mt-1">
                                     <p class="text-[10px] text-gray-500 font-bold uppercase flex items-center mr-3">
                                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                        {{ eq.nombre_cancha || 'Sin Sede Oficial' }}
+                                        {{ sol.nombre_cancha || 'Sin Sede Oficial' }}
                                     </p>
-                                    
                                     <span class="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest border" 
-                                          :class="eq.total_jugadores >= 5 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
-                                        {{ eq.total_jugadores || 0 }} Jugadores
+                                          :class="sol.total_jugadores >= 5 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'">
+                                        {{ sol.total_jugadores || 0 }} Jugadores
                                     </span>
                                 </div>
                             </div>
-                            <button @click="handleInscribirEquipo(eq)" :disabled="procesando"
-                                class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-md shadow hover:bg-indigo-700 disabled:opacity-50 transition-colors uppercase tracking-wide">
-                                Añadir
-                            </button>
+                            <div class="flex space-x-2 w-full md:w-auto">
+                                <button @click="handleResponderSolicitud(sol, 'Aprobada')" :disabled="procesando"
+                                    class="flex-1 md:flex-none px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-md shadow hover:bg-green-700 disabled:opacity-50 transition-colors uppercase tracking-wide">
+                                    Aprobar
+                                </button>
+                                <button @click="handleResponderSolicitud(sol, 'Rechazada')" :disabled="procesando"
+                                    class="flex-1 md:flex-none px-4 py-2 bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-md shadow-sm hover:bg-red-200 disabled:opacity-50 transition-colors uppercase tracking-wide">
+                                    Rechazar
+                                </button>
+                            </div>
                         </li>
                     </ul>
+
+                    <h4 class="text-xs font-black text-green-600 uppercase mb-3 tracking-wider flex items-center pt-4 border-t border-indigo-100">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Equipos Aprobados ({{ equiposAprobados.length }})
+                    </h4>
+
+                    <div v-if="equiposAprobados.length === 0" class="bg-white/60 border border-green-100 p-6 rounded-lg text-center text-sm text-green-600 italic">
+                        Aún no has aprobado a ningún equipo para este torneo.
+                    </div>
+
+                    <ul class="space-y-3">
+                        <li v-for="eq in equiposAprobados" :key="'apr_'+eq.id_equipo" 
+                            class="bg-white p-4 rounded-lg flex justify-between items-center shadow-sm border border-green-200">
+                            <div>
+                                <p class="font-bold text-gray-900 leading-tight">{{ eq.nombre_oficial }} <span class="text-xs text-gray-500 font-normal">({{ eq.siglas }})</span></p>
+                                <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">Sede: {{ eq.nombre_cancha || 'Sin Sede' }}</p>
+                            </div>
+                            <span class="text-[10px] bg-green-100 text-green-800 font-black px-2 py-1 rounded border border-green-300 uppercase">
+                                Oficial
+                            </span>
+                        </li>
+                    </ul>
+                    <div v-if="equiposRechazados.length > 0" class="mt-8 animate-fade-in">
+                        <h4 class="text-xs font-black text-red-600 uppercase mb-3 tracking-wider flex items-center pt-4 border-t border-red-100">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Solicitudes Rechazadas ({{ equiposRechazados.length }})
+                        </h4>
+
+                        <ul class="space-y-3">
+                            <li v-for="eq in equiposRechazados" :key="'rech_'+eq.id_equipo" 
+                                class="bg-red-50 p-4 rounded-lg flex justify-between items-center shadow-sm border border-red-200 opacity-80 hover:opacity-100 transition-opacity">
+                                <div>
+                                    <p class="font-bold text-gray-900 leading-tight line-through">{{ eq.nombre_oficial }} <span class="text-xs text-gray-500 font-normal">({{ eq.siglas }})</span></p>
+                                    <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">Sede: {{ eq.nombre_cancha || 'Sin Sede' }}</p>
+                                </div>
+                                <div class="flex flex-col items-end">
+                                    <span class="text-[10px] bg-red-100 text-red-800 font-black px-2 py-1 rounded border border-red-300 uppercase mb-2">
+                                        Rechazado
+                                    </span>
+                                    <button @click="handleResponderSolicitud(eq, 'Pendiente')" :disabled="procesando"
+                                        class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline transition-colors disabled:opacity-50">
+                                        Restaurar a Pendiente
+                                    </button>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
         </div>
     </div>
 </template>
-
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { 
-    crearTorneoService, obtenerTorneosActivosService, editarTorneoService, 
-    iniciarTorneoService, obtenerEquiposElegiblesService, inscribirEquipoService,
-    eliminarTorneoService
+    crearTorneoService, 
+    obtenerTorneosActivosService, 
+    editarTorneoService, 
+    iniciarTorneoService, 
+    eliminarTorneoService, 
+    obtenerInscripcionesPorTorneoService, 
+    responderInscripcionService
 } from '../../services/torneosService' 
 
 const viewMode = ref('crear')
 const procesando = ref(false)
 const torneos = ref([])
 const torneoSeleccionado = ref(null)
-const equiposElegibles = ref([])
-
+const inscripciones = ref([])
+const solicitudesPendientes = computed(() => inscripciones.value.filter(i => i.estado_inscripcion === 'Pendiente'))
+const equiposAprobados = computed(() => inscripciones.value.filter(i => i.estado_inscripcion === 'Aprobada'))
+const equiposRechazados = computed(() => {
+    if (!Array.isArray(inscripciones.value)) return [];
+    return inscripciones.value.filter(i => i.estado_inscripcion === 'Rechazada');
+});
 const formReglamentos = ref({
     general: '',
     sanciones: '',
@@ -325,10 +388,22 @@ const cargarTorneos = async () => {
     }
 }
 
+const cargarInscripciones = async (id) => {
+    try {
+        inscripciones.value = await obtenerInscripcionesPorTorneoService(id)
+        // Actualizamos visualmente el contador de inscritos para que coincida con los aprobados
+        if (torneoSeleccionado.value) {
+            torneoSeleccionado.value.equipos_inscritos = equiposAprobados.value.length;
+        }
+    } catch (error) {
+        console.error("Error al cargar inscripciones", error)
+    }
+}
+
 const volverListado = () => {
     viewMode.value = 'crear';
     torneoSeleccionado.value = null;
-    equiposElegibles.value = [];
+    inscripciones.value = [];
     form.value = {
         nombre_torneo: '', descripcion: '', categoria: '',
         fecha_inicio: '', fecha_fin: '', numero_equipos: 8,
@@ -353,7 +428,7 @@ const guardarNuevoTorneo = async () => {
     procesando.value = true
     try {
         await crearTorneoService(form.value)
-        alert('Torneo creado exitosamente. Ahora haz clic sobre él para inscribir equipos.')
+        alert('Torneo creado exitosamente. Ahora haz clic sobre él para gestionar sus inscripciones.')
         volverListado()
     } catch (error) {
         alert(error.response?.data?.error || 'Error al guardar el torneo.')
@@ -390,33 +465,38 @@ const seleccionarTorneo = async (torneo) => {
     viewMode.value = 'gestionar'
 
     if (torneo.estado === 'En inscripción') {
-        await cargarEquiposElegibles(torneo.id_torneo)
+        await cargarInscripciones(torneo.id_torneo)
     }
 }
 
-const cargarEquiposElegibles = async (id) => {
-    try {
-        equiposElegibles.value = await obtenerEquiposElegiblesService(id)
-    } catch (error) {
-        console.error("Error al cargar equipos elegibles", error)
-    }
-}
-
-// AQUI AGREGAMOS LA VALIDACIÓN ANTES DE INSCRIBIR
-const handleInscribirEquipo = async (equipo) => {
-    const totalJugadores = parseInt(equipo.total_jugadores || 0);
-    
-    if (totalJugadores < 5) {
-        return alert(`❌ REGLA DE COMPETICIÓN:\n\nEl equipo "${equipo.nombre_oficial}" no puede ser inscrito porque solo cuenta con ${totalJugadores} jugador(es) en su plantilla activa.\n\nEl mínimo requerido son 5 jugadores (incluyendo suplentes).`);
+const handleResponderSolicitud = async (solicitud, nuevoEstado) => {
+    if (nuevoEstado === 'Aprobada') {
+        const totalJugadores = parseInt(solicitud.total_jugadores || 0);
+        
+        if (totalJugadores < 5) {
+            return alert(`REGLA DE COMPETICIÓN:\n\nEl equipo "${solicitud.nombre_oficial}" no puede ser aprobado porque solo cuenta con ${totalJugadores} jugador(es) en su plantilla activa.\n\nRechaza la solicitud o pide al entrenador que fiche a 5 jugadores mínimo.`);
+        }
+        
+        if (equiposAprobados.value.length >= form.value.numero_equipos) {
+            return alert(`REGLA DE TORNEO: Ya has aprobado a los ${form.value.numero_equipos} equipos requeridos. El cupo está lleno.`);
+        }
+    } else {
+        if (!confirm(`¿Estás seguro de RECHAZAR la solicitud del equipo ${solicitud.nombre_oficial}?`)) return;
     }
 
     procesando.value = true
     try {
-        await inscribirEquipoService(torneoSeleccionado.value.id_torneo, equipo.id_equipo)
-        torneoSeleccionado.value.equipos_inscritos++
-        equiposElegibles.value = equiposElegibles.value.filter(e => e.id_equipo !== equipo.id_equipo)
+        await responderInscripcionService(torneoSeleccionado.value.id_torneo, solicitud.id_equipo, nuevoEstado)
+        
+        // Recargamos la lista para mover el equipo de tabla visualmente
+        await cargarInscripciones(torneoSeleccionado.value.id_torneo)
+        
+        if (nuevoEstado === 'Aprobada') {
+            alert('Equipo aprobado e inscrito oficialmente en el torneo.');
+        }
+        
     } catch (error) {
-        alert(error.response?.data?.error || 'Error al inscribir al equipo.')
+        alert(error.response?.data?.error || 'Error al procesar la solicitud.')
     } finally {
         procesando.value = false
     }
@@ -446,22 +526,23 @@ const handleActualizarTorneo = async () => {
 }
 
 const handleIniciarTorneo = async () => {
-    const total = torneoSeleccionado.value.equipos_inscritos
-    const limite = form.value.numero_equipos
+    
+    const total = equiposAprobados.value.length;
+    const limite = form.value.numero_equipos;
 
     if (total < limite) {
         const faltantes = limite - total;
-        return alert(`REGLA DE COMPETICIÓN: El cupo debe estar lleno. Faltan ${faltantes} equipo(s) por inscribir antes de poder iniciar el torneo.`);
+        return alert(`REGLA DE COMPETICIÓN: El cupo debe estar lleno. Faltan ${faltantes} equipo(s) por aprobar antes de poder iniciar el torneo.`);
     }
 
-    if (!confirm(`¿Confirmas el inicio del torneo "${torneoSeleccionado.value.nombre_torneo}"?\n\nAl hacerlo:\n1. Las inscripciones se cerrarán permanentemente.\n2. No podrás editar las bases ni las fechas del torneo.\n3. Los entrenadores no podrán realizar nuevos fichajes.`)) return
+    if (!confirm(`¿Confirmas el inicio del torneo "${torneoSeleccionado.value.nombre_torneo}"?\n\nAl hacerlo:\n1. Las inscripciones se cerrarán permanentemente y se rechazarán las solicitudes pendientes.\n2. No podrás editar las bases ni las fechas del torneo.\n3. Los entrenadores no podrán realizar nuevos fichajes.`)) return
 
     procesando.value = true
     try {
         await iniciarTorneoService(torneoSeleccionado.value.id_torneo)
         alert('¡TORNEO INICIADO! Ahora puedes ir a la Gestión de Partidos para generar el calendario base.')
         torneoSeleccionado.value.estado = 'En curso'
-        equiposElegibles.value = [] 
+        inscripciones.value = [] 
         await cargarTorneos()
     } catch (error) {
         alert(error.response?.data?.error || 'Error al iniciar el torneo.')

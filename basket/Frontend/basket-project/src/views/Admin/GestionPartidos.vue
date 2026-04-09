@@ -7,7 +7,7 @@
                     <button v-if="torneoSeleccionado" @click="volver" class="mr-3 text-indigo-600 hover:text-indigo-800 transition-colors">&larr;</button>
                     Gestión de Partidos
                 </h2>
-                <p class="text-gray-600 mt-1">Genera las llaves, calendariza los encuentros y registra los resultados finales.</p>
+                <p class="text-gray-600 mt-1">Genera las llaves, calendariza los encuentros y supervisa el progreso del torneo.</p>
             </div>
         </div>
 
@@ -110,18 +110,19 @@
                             <button v-if="partido.estado === 'Finalizado'" @click="abrirModalResumen(partido)"
                                     class="w-full py-2.5 bg-green-50 text-green-700 font-bold text-sm rounded-lg hover:bg-green-100 transition-colors border border-green-200 flex items-center justify-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                Mostrar Resumen
+                                Mostrar Resumen del Árbitro
                             </button>
                             
-                            <button v-else-if="partido.estado === 'En Juego'" @click="abrirModalResultado(partido)"
-                                    class="w-full py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-lg hover:bg-indigo-700 transition-colors border border-indigo-700 shadow-sm animate-pulse">
-                                Registrar Resultado Oficial
+                            <button v-else-if="partido.estado === 'En Juego'" disabled
+                                    class="w-full py-2.5 bg-indigo-50 text-indigo-500 font-bold text-sm rounded-lg cursor-wait border border-indigo-200 flex items-center justify-center animate-pulse" title="El árbitro está dirigiendo el partido">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                En Juego - Esperando acta arbitral...
                             </button>
 
                             <button v-else disabled
-                                    class="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-sm rounded-lg cursor-not-allowed border border-gray-200 flex items-center justify-center" title="El árbitro aún no ha dado inicio al partido">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Esperando al Árbitro...
+                                    class="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-sm rounded-lg cursor-not-allowed border border-gray-200 flex items-center justify-center" title="Aún no ha llegado la fecha del encuentro">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Programado
                             </button>
                         </div>
                     </div>
@@ -130,7 +131,7 @@
 
             <div v-if="partidosGenerados.length > 0" class="space-y-6 animate-fade-in mt-8">
                 <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded text-sm text-amber-800 shadow-sm">
-                    <strong>Paso Final:</strong> Asigna la fecha, hora y el <strong>árbitro principal</strong> para cada encuentro.
+                    <strong>Paso Final:</strong> Asigna la fecha, hora y la <strong>terna arbitral</strong> completa para cada encuentro.
                 </div>
 
                 <div v-for="(p, index) in partidosGenerados" :key="index" class="bg-white border-2 border-indigo-50 rounded-xl p-5 shadow-sm">
@@ -147,31 +148,54 @@
                             </div>
                         </div>
 
-                        <div class="w-full xl:w-auto flex flex-col md:flex-row gap-4 bg-white p-3 rounded-lg border border-gray-100">
-                            <div>
-                                <label class="block text-xs font-black text-gray-500 uppercase mb-1">Fecha</label>
-                                <input type="date" v-model="p.fecha" required :min="limiteInicio" :max="limiteFin"
-                                        class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-black text-gray-500 uppercase mb-1">Hora</label>
-                                <input type="time" v-model="p.hora" required 
-                                        class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-black text-gray-500 uppercase mb-1">Árbitro</label>
-                                <select v-model="p.id_arbitro_principal" required 
-                                        class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
-                                    <option value="" disabled>Seleccione...</option>
-                                    
-                                    <option v-for="arb in listaArbitros" :key="arb.id_usuario" :value="arb.id_usuario">
-                                        {{ arb.nombre }} {{ arb.apellido }} (⭐ {{ arb.promedio || '0.0' }})
-                                    </option>
+                        <div class="w-full mt-4 bg-white p-4 rounded-lg border border-gray-100">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Fecha</label>
+                                    <input type="date" v-model="p.fecha" required :min="limiteInicio" :max="limiteFin"
+                                            class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Hora</label>
+                                    <input type="time" v-model="p.hora" required 
+                                            class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-[10px] font-black text-indigo-600 uppercase mb-1">Principal *</label>
+                                    <select v-model="p.id_arbitro_principal" required 
+                                            class="px-3 py-2 border border-indigo-200 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-indigo-50/50">
+                                        <option value="" disabled>Seleccione...</option>
+                                        <option v-for="arb in listaArbitros" :key="'prin_'+arb.id_usuario" :value="arb.id_usuario">
+                                            {{ arb.nombre }} {{ arb.apellido }} (⭐ {{ arb.promedio || '0.0' }})
+                                        </option>
+                                    </select>
+                                </div>
 
-                                </select>
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Asistente 1 *</label>
+                                    <select v-model="p.id_arbitro_asistente1" required 
+                                            class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                        <option value="" disabled>Seleccione...</option>
+                                        <option v-for="arb in listaArbitros" :key="'as1_'+arb.id_usuario" :value="arb.id_usuario">
+                                            {{ arb.nombre }} {{ arb.apellido }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Asistente 2 *</label>
+                                    <select v-model="p.id_arbitro_asistente2" required 
+                                            class="px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 w-full text-sm font-medium bg-gray-50">
+                                        <option value="" disabled>Seleccione...</option>
+                                        <option v-for="arb in listaArbitros" :key="'as2_'+arb.id_usuario" :value="arb.id_usuario">
+                                            {{ arb.nombre }} {{ arb.apellido }}
+                                        </option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        
+
                     </div>
                 </div>
 
@@ -187,7 +211,6 @@
 
         </div>
 
-        <ModalResultadoPartido v-if="mostrarModalResultado" :partido="partidoParaEditar" :idTorneo="torneoSeleccionado.id_torneo" @close="cerrarModalYRecargar" />
         <ModalResumenPartido v-if="mostrarModalResumen" :partido="partidoParaResumen" @close="mostrarModalResumen = false; partidoParaResumen = null" />
 
     </div>
@@ -197,7 +220,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { obtenerTorneosActivosService, obtenerEquiposInscritosService } from '../../services/torneosService'
 import { guardarPartidosMultiples, obtenerPartidosPorTorneo } from '../../services/partidosService'
-import ModalResultadoPartido from '../modals/ModalResultadoPartido.vue' 
 import ModalResumenPartido from '../modals/ModalResumenPartido.vue'
 import { obtenerUsuariosService } from '../../services/usuarioService'
 import { obtenerPromedioArbitroService } from '../../services/arbitrosService'
@@ -209,9 +231,8 @@ const partidosOficiales = ref([])
 const partidosGenerados = ref([])
 const procesando = ref(false)
 const listaArbitros = ref([])
-const mostrarModalResultado = ref(false)
-const partidoParaEditar = ref(null)
 
+// 🔴 Eliminamos las variables del ModalResultadoPartido que ya no ocupamos
 const mostrarModalResumen = ref(false)
 const partidoParaResumen = ref(null)
 
@@ -326,96 +347,89 @@ const generarBrackets = () => {
                 ronda_torneo: ronda,
                 fecha: '',
                 hora: '',
-                id_arbitro_principal: ''
+                id_arbitro_principal: '',
+                id_arbitro_asistente1: '', 
+                id_arbitro_asistente2: ''  
             })
         }
     }
     partidosGenerados.value = matches
 }
 
-// ---------------------------------------------------------
-// LÓGICA DE VALIDACIÓN DE ÁRBITROS
-// ---------------------------------------------------------
 const validarArbitros = () => {
-    // 1. Unificamos todos los partidos (los que ya existen en el torneo + los nuevos)
-    // para tener una visión global de la carga de trabajo de los árbitros.
-    const todosLosPartidos = [
-        ...partidosOficiales.value.map(p => ({
-            id_arbitro: p.id_arbitro_principal,
-            fecha: p.fecha.split('T')[0], // Aseguramos formato YYYY-MM-DD
-            hora: p.hora
-        })),
-        ...partidosGenerados.value.map(p => ({
-            id_arbitro: p.id_arbitro_principal,
-            fecha: p.fecha,
-            hora: p.hora
-        }))
-    ];
+    const asignacionesTotales = [];
 
-    // 2. Agrupamos los partidos por Árbitro y por Fecha
-    // Estructura: { 'idArbitro_fecha': [ { hora: '10:00' }, { hora: '18:00' } ] }
+    partidosOficiales.value.forEach(p => {
+        const fechaStr = p.fecha.split('T')[0];
+        if (p.id_arbitro_principal) asignacionesTotales.push({ id_arb: p.id_arbitro_principal, fecha: fechaStr, hora: p.hora });
+        if (p.id_arbitro_asistente1) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente1, fecha: fechaStr, hora: p.hora });
+        if (p.id_arbitro_asistente2) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente2, fecha: fechaStr, hora: p.hora });
+    });
+
+    partidosGenerados.value.forEach(p => {
+        if (p.id_arbitro_principal) asignacionesTotales.push({ id_arb: p.id_arbitro_principal, fecha: p.fecha, hora: p.hora });
+        if (p.id_arbitro_asistente1) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente1, fecha: p.fecha, hora: p.hora });
+        if (p.id_arbitro_asistente2) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente2, fecha: p.fecha, hora: p.hora });
+    });
+
     const mapaArbitros = {};
+    for (const asignacion of asignacionesTotales) {
+        if (!asignacion.id_arb || !asignacion.fecha || !asignacion.hora) continue;
 
-    for (const p of todosLosPartidos) {
-        if (!p.id_arbitro || !p.fecha || !p.hora) continue;
-
-        const clave = `${p.id_arbitro}_${p.fecha}`;
+        const clave = `${asignacion.id_arb}_${asignacion.fecha}`;
         if (!mapaArbitros[clave]) {
             mapaArbitros[clave] = [];
         }
-        
-        // Convertimos la hora a un objeto Date (usando un día base falso) para facilitar la resta
-        const horaDate = new Date(`1970-01-01T${p.hora}:00`);
+        const horaDate = new Date(`1970-01-01T${asignacion.hora}:00`);
         mapaArbitros[clave].push(horaDate);
     }
 
-    // 3. Revisamos las reglas para cada combinación (Árbitro + Día)
     for (const clave in mapaArbitros) {
         const horarios = mapaArbitros[clave];
         const [idArbitro, fecha] = clave.split('_');
-
-        // REGLA 1: Máximo 2 partidos el mismo día
+        
         if (horarios.length > 2) {
             const arbitroObj = listaArbitros.value.find(a => a.id_usuario == idArbitro);
             const nombreArbitro = arbitroObj ? `${arbitroObj.nombre} ${arbitroObj.apellido}` : 'Un árbitro';
-            return `❌ SOBRECARGA: ${nombreArbitro} está asignado a ${horarios.length} partidos el día ${fecha}. El límite es 2.`;
+            return ` SOBRECARGA DE TRABAJO:\n\n${nombreArbitro} está asignado a ${horarios.length} partidos el día ${fecha}.\nEl límite máximo de la liga es de 2 encuentros diarios por árbitro (sin importar su rol en la cancha).`;
         }
-
-        // REGLA 2: Diferencia de 6 horas si hay 2 partidos
+        
         if (horarios.length === 2) {
-            // Ordenamos los horarios para asegurar que restamos el mayor menos el menor
             horarios.sort((a, b) => a - b);
-            
-            // Restamos (el resultado es en milisegundos) y lo pasamos a horas
             const diffMilisegundos = horarios[1] - horarios[0];
             const diffHoras = diffMilisegundos / (1000 * 60 * 60);
 
             if (diffHoras < 6) {
                 const arbitroObj = listaArbitros.value.find(a => a.id_usuario == idArbitro);
                 const nombreArbitro = arbitroObj ? `${arbitroObj.nombre} ${arbitroObj.apellido}` : 'Un árbitro';
-                return `❌ DESCANSO INSUFICIENTE: ${nombreArbitro} tiene 2 partidos el día ${fecha} con menos de 6 horas de diferencia. (Diferencia actual: ${diffHoras.toFixed(1)} hrs).`;
+                return ` DESCANSO INSUFICIENTE:\n\n${nombreArbitro} está asignado a 2 partidos el día ${fecha} con menos de 6 horas de diferencia.\n\nTiempo de descanso actual: ${diffHoras.toFixed(1)} horas.`;
             }
         }
     }
 
-    return null; // Si devuelve null, significa que todo está perfecto
+    return null; 
 }
 
 const guardarCalendario = async () => {
     const minStr = limiteInicio.value;
     const maxStr = limiteFin.value;
 
-    // Validación Básica: Fechas y Horas llenas + Rango correcto
     for (const p of partidosGenerados.value) {
-        if (!p.fecha || !p.hora || !p.id_arbitro_principal) {
-            return alert(`Falta ingresar fecha, hora o árbitro en el partido de ${p.local_nombre} vs ${p.visitante_nombre}`);
+        if (!p.fecha || !p.hora || !p.id_arbitro_principal || !p.id_arbitro_asistente1 || !p.id_arbitro_asistente2) {
+            return alert(`Falta ingresar fecha, hora o completar la terna arbitral en el partido de ${p.local_nombre} vs ${p.visitante_nombre}`);
         }
+        
+        if (p.id_arbitro_principal === p.id_arbitro_asistente1 || 
+            p.id_arbitro_principal === p.id_arbitro_asistente2 || 
+            p.id_arbitro_asistente1 === p.id_arbitro_asistente2) {
+            return alert(` TERNAR INVÁLIDA:\n\nHas asignado a un mismo árbitro en múltiples posiciones para el partido de ${p.local_nombre} vs ${p.visitante_nombre}.\nPor favor, selecciona a 3 personas distintas.`);
+        }
+
         if (p.fecha < minStr || p.fecha > maxStr) {
-            return alert(`❌ ERROR DE FECHA:\n\nEl partido ${p.local_nombre} vs ${p.visitante_nombre} tiene la fecha ${p.fecha}.\n\nDebe jugarse entre el ${minStr} y el ${maxStr}.`);
+            return alert(`ERROR DE FECHA:\n\nEl partido ${p.local_nombre} vs ${p.visitante_nombre} tiene la fecha ${p.fecha}.\n\nDebe jugarse entre el ${minStr} y el ${maxStr}.`);
         }
     }
 
-    // Validación Avanzada: Carga de trabajo de los Árbitros
     const errorArbitros = validarArbitros();
     if (errorArbitros) {
         return alert(errorArbitros);
@@ -424,7 +438,7 @@ const guardarCalendario = async () => {
     procesando.value = true
     try {
         await guardarPartidosMultiples(partidosGenerados.value)
-        alert('¡Calendario guardado exitosamente!')
+        alert('¡Calendario y terna arbitral guardados exitosamente!')
         
         partidosOficiales.value = await obtenerPartidosPorTorneo(torneoSeleccionado.value.id_torneo)
         equiposInscritos.value = await obtenerEquiposInscritosService(torneoSeleccionado.value.id_torneo)
@@ -436,24 +450,9 @@ const guardarCalendario = async () => {
     }
 }
 
-const abrirModalResultado = (partido) => {
-    partidoParaEditar.value = partido
-    mostrarModalResultado.value = true
-}
-
 const abrirModalResumen = (partido) => {
     partidoParaResumen.value = partido
     mostrarModalResumen.value = true
-}
-
-const cerrarModalYRecargar = async () => {
-    mostrarModalResultado.value = false
-    partidoParaEditar.value = null
-    
-    if (torneoSeleccionado.value) {
-        partidosOficiales.value = await obtenerPartidosPorTorneo(torneoSeleccionado.value.id_torneo)
-        equiposInscritos.value = await obtenerEquiposInscritosService(torneoSeleccionado.value.id_torneo)
-    }
 }
 
 onMounted(cargarTorneos)

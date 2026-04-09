@@ -40,9 +40,10 @@
                         active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
                         Calendario de Partidos
                     </router-link>
+                    
                 </div>
 
-                <div class="hidden md:flex items-center">
+                <div v-if="!isLoggedIn" class="hidden md:flex items-center">
                     <button @click="$router.push('/login')" 
                             class="px-5 py-2.5 text-sm font-black text-indigo-600 border-2 border-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
@@ -50,7 +51,7 @@
                     </button>
                 </div>
 
-                <div class="md:hidden flex items-center">
+                <div v-if="!isLoggedIn" class="hidden md:flex items-center">
                     <button @click="isMobileMenuOpen = !isMobileMenuOpen" class="text-gray-600 hover:text-indigo-600 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path v-if="!isMobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -100,7 +101,7 @@
                     </div>
                 </router-link>
                 
-                <div class="pt-6 mt-2 border-t border-gray-200">
+                <div v-if="!isLoggedIn" class="pt-6 mt-2 border-t border-gray-200">
                     <button @click="$router.push('/login'); isMobileMenuOpen = false" 
                             class="w-full flex items-center justify-center px-4 py-3 text-base font-black text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md">
                         Acceso Staff / Equipos
@@ -112,9 +113,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const isMobileMenuOpen = ref(false)
+
+const getUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user'))
+  } catch {
+    return null
+  }
+}
+
+const user = ref(getUser())
+
+const isLoggedIn = computed(() => !!user.value)
+
+window.addEventListener('storage', () => {
+  user.value = getUser()
+})
 </script>
 
 <style scoped>

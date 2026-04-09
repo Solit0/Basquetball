@@ -186,19 +186,22 @@ const plantillaEquipo = pgTable("plantilla_equipo", {
     idPlantilla: uuid("id_plantilla").defaultRandom().primaryKey().notNull(),
     idEquipo: uuid("id_equipo").notNull(),
     idJugador: uuid("id_jugador").notNull(),
-    numeroCamiseta: integer("numero_camiseta").notNull(),
-    esCapitan: boolean("es_capitan").default(false),
-    fechaIngreso: date("fecha_ingreso").default(sql`CURRENT_DATE`),
-    fechaSalida: date("fecha_salida"),
-    activo: boolean("activo").default(true),
-    rolEquipo: varchar("rol_equipo", { length: 20 }).default('Suplente'),
+    fechaIngreso: timestamp("fecha_ingreso", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+    fechaSalida: timestamp("fecha_salida", { mode: 'string' }),
+    activo: boolean("activo").default(true)
 }, (table) => [
-    foreignKey({ columns: [table.idEquipo], foreignColumns: [equipos.idEquipo], name: "plantilla_equipo_id_equipo_fkey" }),
-    foreignKey({ columns: [table.idJugador], foreignColumns: [jugadores.idJugador], name: "plantilla_equipo_id_jugador_fkey" }),
-    unique("unique_jugador_equipo").on(table.idEquipo, table.idJugador),
-    check("plantilla_equipo_rol_equipo_check", sql`(rol_equipo)::text = ANY ((ARRAY['Titular'::character varying, 'Suplente'::character varying, 'No Convocado'::character varying])::text[])`),
+    foreignKey({
+        columns: [table.idEquipo],
+        foreignColumns: [equipos.idEquipo],
+        name: "plantilla_equipo_id_equipo_fkey"
+    }),
+    foreignKey({
+        columns: [table.idJugador],
+        foreignColumns: [jugadores.idJugador],
+        name: "plantilla_equipo_id_jugador_fkey"
+    })
 ]);
-
+ 
 // 13. FAVORITOS
 const favoritos = pgTable("favoritos", {
     idFavorito: uuid("id_favorito").defaultRandom().primaryKey().notNull(),
@@ -212,7 +215,6 @@ const favoritos = pgTable("favoritos", {
     check("check_fav_tipo", sql`((id_equipo IS NOT NULL) AND (id_jugador IS NULL)) OR ((id_equipo IS NULL) AND (id_jugador IS NOT NULL))`),
 ]);
 
-// 14. ALINEACIONES
 const alineaciones = pgTable("alineaciones", {
     idAlineacion: uuid("id_alineacion").defaultRandom().primaryKey().notNull(),
     idPartido: uuid("id_partido").notNull(),
@@ -230,18 +232,15 @@ const alineaciones = pgTable("alineaciones", {
     check("alineaciones_rol_partido_check", sql`(rol_partido)::text = ANY ((ARRAY['Titular'::character varying, 'Suplente'::character varying, 'No Convocado'::character varying])::text[])`),
 ]);
 
-// 15. ESTADISTICAS PARTIDO
 const estadisticasPartido = pgTable("estadisticas_partido", {
     idEstadistica: uuid("id_estadistica").defaultRandom().primaryKey().notNull(),
     idPartido: uuid("id_partido").notNull(),
-    idJugador: uuid("id_jugador").notNull(),
+    idRoster: uuid("id_roster").notNull(), 
     puntosAnotados: integer("puntos_anotados").default(0),
 }, (table) => [
-    foreignKey({ columns: [table.idJugador], foreignColumns: [jugadores.idJugador], name: "estadisticas_partido_id_jugador_fkey" }).onDelete("cascade"),
+    foreignKey({ columns: [table.idRoster], foreignColumns: [rosterTorneo.idRoster], name: "estadisticas_partido_id_roster_fkey" }).onDelete("cascade"),
     foreignKey({ columns: [table.idPartido], foreignColumns: [partidos.idPartido], name: "estadisticas_partido_id_partido_fkey" }).onDelete("cascade"),
 ]);
-
-// 16. INFORMES PARTIDO
 const informesPartido = pgTable("informes_partido", {
     idInforme: uuid("id_informe").defaultRandom().primaryKey().notNull(),
     idPartido: uuid("id_partido").notNull(),
@@ -256,7 +255,6 @@ const informesPartido = pgTable("informes_partido", {
     unique("informes_partido_id_partido_key").on(table.idPartido),
 ]);
 
-// 17. SANCIONES
 const sanciones = pgTable("sanciones", {
     idSancion: uuid("id_sancion").defaultRandom().primaryKey().notNull(),
     idJugador: uuid("id_jugador").notNull(),
@@ -273,7 +271,6 @@ const sanciones = pgTable("sanciones", {
     foreignKey({ columns: [table.idTorneo], foreignColumns: [torneos.idTorneo], name: "sanciones_id_torneo_fkey" }),
 ]);
 
-// 18. TRANSMISIONES
 const transmisiones = pgTable("transmisiones", {
     idTransmision: uuid("id_transmision").defaultRandom().primaryKey().notNull(),
     idCanal: uuid("id_canal").notNull(),
@@ -284,7 +281,6 @@ const transmisiones = pgTable("transmisiones", {
     foreignKey({ columns: [table.idPartido], foreignColumns: [partidos.idPartido], name: "transmisiones_id_partido_fkey" }).onDelete("cascade"),
 ]);
 
-// 19. INCIDENTES
 const incidentes = pgTable("incidentes", {
     idIncidente: uuid("id_incidente").defaultRandom().primaryKey().notNull(),
     idInforme: uuid("id_informe").notNull(),
@@ -295,7 +291,6 @@ const incidentes = pgTable("incidentes", {
     foreignKey({ columns: [table.idInforme], foreignColumns: [informesPartido.idInforme], name: "incidentes_id_informe_fkey" }).onDelete("cascade"),
 ]);
 
-// 20. EVALUACIONES ARBITRO
 const evaluacionesArbitro = pgTable("evaluaciones_arbitro", {
     idEvaluacion: uuid("id_evaluacion").defaultRandom().primaryKey().notNull(),
     idInforme: uuid("id_informe").notNull(),
@@ -313,18 +308,35 @@ const evaluacionesArbitro = pgTable("evaluaciones_arbitro", {
     check("evaluaciones_arbitro_puntuacion_check", sql`(puntuacion >= 1) AND (puntuacion <= 10)`),
 ]);
 
-// 21. ASISTENCIA PARTIDOS
 const asistenciaPartidos = pgTable("asistencia_partidos", {
     idPartido: uuid("id_partido").notNull(),
-    idJugador: uuid("id_jugador").notNull(),
+    idRoster: uuid("id_roster").notNull(), 
     estado: varchar("estado", { length: 20 }).default('Ausente'),
 }, (table) => [
-    foreignKey({ columns: [table.idJugador], foreignColumns: [jugadores.idJugador], name: "asistencia_partidos_id_jugador_fkey" }).onDelete("cascade"),
+    foreignKey({ columns: [table.idRoster], foreignColumns: [rosterTorneo.idRoster], name: "asistencia_partidos_id_roster_fkey" }).onDelete("cascade"),
     foreignKey({ columns: [table.idPartido], foreignColumns: [partidos.idPartido], name: "asistencia_partidos_id_partido_fkey" }).onDelete("cascade"),
-    primaryKey({ columns: [table.idPartido, table.idJugador], name: "asistencia_partidos_pkey" }),
+    primaryKey({ columns: [table.idPartido, table.idRoster], name: "asistencia_partidos_pkey" }),
+]);
+const rosterTorneo = pgTable('roster_torneo', {
+    idRoster: uuid('id_roster').defaultRandom().primaryKey(),
+    idInscripcion: uuid('id_inscripcion').notNull().references(() => inscripciones.idInscripcion, { onDelete: 'cascade' }),
+    idJugador: uuid('id_jugador').notNull().references(() => jugadores.idJugador),
+    numeroCamiseta: integer('numero_camiseta').notNull(),
+    rolRoster: varchar('rol_roster').default('Suplente'),
+    esCapitan: boolean('es_capitan').default(false),
+}, (table) => [
+    unique("unique_jugador_roster")
+        .on(table.idInscripcion, table.idJugador),
+
+    unique("unique_numero_roster")
+        .on(table.idInscripcion, table.numeroCamiseta),
+
+    check(
+        "roster_torneo_rol_roster_check",
+        sql`(rol_roster)::text = ANY ((ARRAY['Titular', 'Suplente'])::text[])`
+    ),
 ]);
 
-// EXPORTACIÓN COMPLETA
 module.exports = {
     roles,
     usuarios,
@@ -346,5 +358,6 @@ module.exports = {
     transmisiones,
     incidentes,
     evaluacionesArbitro,
-    asistenciaPartidos
+    asistenciaPartidos,
+    rosterTorneo
 };

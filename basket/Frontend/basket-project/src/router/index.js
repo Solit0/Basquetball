@@ -15,7 +15,7 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      // CORRECCIÓN: Ahora redirige al contenido principal en lugar de cargar solo el Navbar
+    
       path: '/', 
       name: 'Inicio',
       redirect: '/horarios' 

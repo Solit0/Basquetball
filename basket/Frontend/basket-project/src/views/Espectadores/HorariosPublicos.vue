@@ -38,7 +38,7 @@
                     </div>
 
                     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div v-for="p in partidosProximos" :key="p.id_partido" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
+                        <div v-for="p in partidosProximos" :key="p.id_partido" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
                             
                             <div class="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
                                 <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
@@ -64,7 +64,7 @@
                                 </div>
                             </div>
 
-                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-600 font-medium mt-auto">
+                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-600 font-medium mb-3">
                                 <div class="flex items-center mb-2 sm:mb-0">
                                     <svg class="w-4 h-4 mr-1.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
                                     Sede: <strong class="ml-1 text-gray-800">{{ p.nombre_cancha }}</strong>
@@ -74,6 +74,12 @@
                                     Árbitro: <strong class="ml-1 text-gray-800">{{ p.arbitro_nombre ? p.arbitro_nombre + ' ' + p.arbitro_apellido : 'Por definir' }}</strong>
                                 </div>
                             </div>
+
+                            <button @click="abrirRostersPartido(p)" 
+                                    class="w-full py-2.5 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-xl hover:bg-indigo-100 transition-colors border border-indigo-200 flex items-center justify-center mt-auto">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                Ver Rosters del Encuentro
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -120,7 +126,6 @@
 
         <div v-if="modalAbierto && fichaActual" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
-                
                 <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <div>
                         <h3 class="font-black tracking-widest uppercase text-sm text-indigo-400 mb-1">{{ fichaActual.partido.nombre_torneo }} - {{ fichaActual.partido.ronda_torneo }}</h3>
@@ -132,7 +137,6 @@
                 </div>
 
                 <div class="p-6 overflow-y-auto flex-1 bg-gray-50">
-                    
                     <div v-if="cargandoFicha" class="text-center py-10">
                         <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <p class="text-gray-500 font-medium text-sm">Cargando estadísticas oficiales...</p>
@@ -153,18 +157,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-4 flex justify-end">
-                            <div class="bg-white px-3 py-1.5 rounded shadow-sm border border-gray-200 text-[10px] text-gray-600 font-bold flex space-x-3">
-                                <span><span class="text-green-500">✓</span> Presente</span>
-                                <span><span class="text-gray-400">X</span> Ausente</span>
-                                <span><span class="text-red-500">🚫</span> Inhabilitado</span>
-                                <span><span class="bg-amber-400 text-amber-900 px-1 rounded">©</span> Capitán</span>
-                                <span><span class="border border-indigo-200 text-indigo-600 px-1 rounded">T</span> Titular</span>
-                            </div>
-                        </div>
-
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                            
                             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                                     <h5 class="font-black text-gray-800 uppercase tracking-widest text-sm">{{ fichaActual.partido.local_nombre }}</h5>
@@ -174,7 +167,6 @@
                                     <thead class="bg-gray-50 text-gray-500 font-bold text-[10px] uppercase border-b border-gray-200">
                                         <tr>
                                             <th class="px-4 py-2">Jugador</th>
-                                            <th class="px-2 py-2 text-center">Estado</th>
                                             <th class="px-4 py-2 text-right text-indigo-600">Pts</th>
                                         </tr>
                                     </thead>
@@ -182,23 +174,13 @@
                                         <tr v-for="j in fichaActual.alineacionLocal" :key="j.id_jugador" class="hover:bg-gray-50">
                                             <td class="px-4 py-2.5">
                                                 <div class="flex items-center">
-                                                    <span class="w-5 h-5 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-[10px] font-black mr-2 shrink-0">{{ j.numero_camiseta }}</span>
-                                                    <span class="font-medium text-gray-900" :class="{'line-through text-gray-400': j.estado_asistencia !== 'Presente'}">{{ j.nombre }} {{ j.apellido }}</span>
+                                                    <span class="font-medium text-gray-900">{{ j.nombre }} {{ j.apellido }}</span>
                                                     <span v-if="j.es_capitan" class="ml-1 text-[9px] bg-amber-400 text-amber-900 px-1 py-0.5 rounded font-bold shrink-0" title="Capitán">©</span>
-                                                    <span v-if="j.rol_partido === 'Titular'" class="ml-1 text-[9px] border border-indigo-200 text-indigo-600 px-1 py-0.5 rounded font-bold shrink-0" title="Titular">T</span>
                                                 </div>
                                             </td>
-                                            <td class="px-2 py-2.5 text-center shrink-0">
-                                                <span v-if="j.estado_asistencia === 'Presente'" class="text-green-500 font-bold" title="Presente">✓</span>
-                                                <span v-else-if="j.estado_asistencia === 'Ausente'" class="text-gray-400 font-bold" title="Ausente">X</span>
-                                                <span v-else class="text-red-500 font-bold" title="Inhabilitado">🚫</span>
-                                            </td>
                                             <td class="px-4 py-2.5 text-right font-black text-indigo-600 text-sm shrink-0">
-                                                {{ j.estado_asistencia === 'Presente' ? (j.puntos_anotados || 0) : '-' }}
+                                                {{ j.puntos_anotados || 0 }}
                                             </td>
-                                        </tr>
-                                        <tr v-if="fichaActual.alineacionLocal.length === 0">
-                                            <td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm italic">Sin registros de jugadores.</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -213,7 +195,6 @@
                                     <thead class="bg-gray-50 text-gray-500 font-bold text-[10px] uppercase border-b border-gray-200">
                                         <tr>
                                             <th class="px-4 py-2">Jugador</th>
-                                            <th class="px-2 py-2 text-center">Estado</th>
                                             <th class="px-4 py-2 text-right text-indigo-600">Pts</th>
                                         </tr>
                                     </thead>
@@ -221,48 +202,92 @@
                                         <tr v-for="j in fichaActual.alineacionVisitante" :key="j.id_jugador" class="hover:bg-gray-50">
                                             <td class="px-4 py-2.5">
                                                 <div class="flex items-center">
-                                                    <span class="w-5 h-5 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-[10px] font-black mr-2 shrink-0">{{ j.numero_camiseta }}</span>
-                                                    <span class="font-medium text-gray-900" :class="{'line-through text-gray-400': j.estado_asistencia !== 'Presente'}">{{ j.nombre }} {{ j.apellido }}</span>
+                                                    <span class="font-medium text-gray-900">{{ j.nombre }} {{ j.apellido }}</span>
                                                     <span v-if="j.es_capitan" class="ml-1 text-[9px] bg-amber-400 text-amber-900 px-1 py-0.5 rounded font-bold shrink-0" title="Capitán">©</span>
-                                                    <span v-if="j.rol_partido === 'Titular'" class="ml-1 text-[9px] border border-indigo-200 text-indigo-600 px-1 py-0.5 rounded font-bold shrink-0" title="Titular">T</span>
                                                 </div>
                                             </td>
-                                            <td class="px-2 py-2.5 text-center shrink-0">
-                                                <span v-if="j.estado_asistencia === 'Presente'" class="text-green-500 font-bold" title="Presente">✓</span>
-                                                <span v-else-if="j.estado_asistencia === 'Ausente'" class="text-gray-400 font-bold" title="Ausente">X</span>
-                                                <span v-else class="text-red-500 font-bold" title="Inhabilitado">🚫</span>
-                                            </td>
                                             <td class="px-4 py-2.5 text-right font-black text-indigo-600 text-sm shrink-0">
-                                                {{ j.estado_asistencia === 'Presente' ? (j.puntos_anotados || 0) : '-' }}
+                                                {{ j.puntos_anotados || 0 }}
                                             </td>
-                                        </tr>
-                                        <tr v-if="fichaActual.alineacionVisitante.length === 0">
-                                            <td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm italic">Sin registros de jugadores.</td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                        <div v-if="fichaActual.sanciones && fichaActual.sanciones.length > 0" class="bg-red-50 border border-red-200 rounded-xl p-5 mb-4">
-                            <h4 class="text-sm font-black text-red-800 uppercase tracking-widest mb-4 flex items-center border-b border-red-200 pb-2">
-                                <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                Sanciones Disciplinarias del Encuentro
-                            </h4>
-                            <div class="space-y-3">
-                                <div v-for="(san, index) in fichaActual.sanciones" :key="index" class="bg-white p-4 rounded-lg border border-red-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-bold text-gray-900">
-                                            {{ san.nombre_jugador }} {{ san.apellido_jugador }} <span class="text-gray-500 font-normal ml-1">({{ san.equipo_nombre }})</span>
-                                        </p>
-                                        <p class="text-xs text-gray-600 italic mt-1">"{{ san.motivo }}"</p>
-                                    </div>
-                                    <div class="mt-2 md:mt-0 shrink-0">
-                                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded text-xs font-black uppercase tracking-wider border border-red-200">{{ san.tipo_sancion }}</span>
-                                    </div>
-                                </div>
+        <div v-if="modalRosterAbierto && partidoRosterActual" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+                
+                <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                    <div>
+                        <h3 class="font-black tracking-widest uppercase text-sm text-indigo-400 mb-1">Previa del Encuentro</h3>
+                        <p class="text-xs text-gray-400">{{ partidoRosterActual.local_nombre }} vs {{ partidoRosterActual.visitante_nombre }}</p>
+                    </div>
+                    <button @click="cerrarRosters" class="text-gray-400 hover:text-white transition-colors bg-slate-800 rounded-full p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto flex-1 bg-gray-50">
+                    <div v-if="cargandoRosters" class="text-center py-10">
+                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="text-gray-500 font-medium text-sm">Buscando información de los equipos...</p>
+                    </div>
+
+                    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 text-center">
+                                <h5 class="font-black text-gray-800 uppercase tracking-widest text-sm">{{ partidoRosterActual.local_nombre }}</h5>
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">Local</span>
+                            </div>
+                            <div class="p-4">
+                                <p v-if="rosterLocal.length === 0" class="text-center text-gray-400 text-sm italic py-4">Roster no disponible.</p>
+                                <ul v-else class="space-y-3">
+                                    <li v-for="j in rosterLocal" :key="j.id_jugador" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
+                                        <div class="flex items-center">
+                                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black mr-3 shadow-sm border border-indigo-200">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-gray-900 text-sm">{{ j.nombre }} {{ j.apellido }}</p>
+                                                <p class="text-[10px] text-gray-500 uppercase font-medium">{{ j.posicion || 'Posición N/A' }}</p>
+                                            </div>
+                                        </div>
+                                        <span v-if="j.es_capitan" class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded border border-yellow-200 shadow-sm">© Capitán</span>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 text-center">
+                                <h5 class="font-black text-gray-800 uppercase tracking-widest text-sm">{{ partidoRosterActual.visitante_nombre }}</h5>
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">Visitante</span>
+                            </div>
+                            <div class="p-4">
+                                <p v-if="rosterVisitante.length === 0" class="text-center text-gray-400 text-sm italic py-4">Roster no disponible.</p>
+                                <ul v-else class="space-y-3">
+                                    <li v-for="j in rosterVisitante" :key="j.id_jugador" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
+                                        <div class="flex items-center">
+                                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black mr-3 shadow-sm border border-indigo-200">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-gray-900 text-sm">{{ j.nombre }} {{ j.apellido }}</p>
+                                                <p class="text-[10px] text-gray-500 uppercase font-medium">{{ j.posicion || 'Posición N/A' }}</p>
+                                            </div>
+                                        </div>
+                                        <span v-if="j.es_capitan" class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded border border-yellow-200 shadow-sm">© Capitán</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -275,22 +300,30 @@
 import { ref, onMounted, computed } from 'vue'
 import NavbarEspectador from '../../components/NavbarEspectador.vue'
 
-// Importamos los servicios reales
+// Importamos los servicios de partidos
 import { obtenerPartidosPublicosService, obtenerFichaTecnicaPublicaService } from '../../services/partidosService'
+// 🔴 IMPORTAMOS EL SERVICIO DE ROSTERS PÚBLICOS
+import { obtenerRosterPublicoService } from '../../services/inscripcionesService'
 
 const tabActiva = ref('proximos')
 const cargando = ref(true)
 const todosLosPartidos = ref([])
 
-// Variables del Modal
+// Variables del Modal de Ficha Técnica (Resultados)
 const modalAbierto = ref(false)
 const cargandoFicha = ref(false)
 const fichaActual = ref(null)
 
+// 🔴 Variables del Modal de Previa (Rosters)
+const modalRosterAbierto = ref(false)
+const cargandoRosters = ref(false)
+const partidoRosterActual = ref(null)
+const rosterLocal = ref([])
+const rosterVisitante = ref([])
+
 onMounted(async () => {
     try {
         cargando.value = true;
-        // Obtenemos todos los partidos públicos de la BD
         const data = await obtenerPartidosPublicosService();
         todosLosPartidos.value = data;
     } catch (error) {
@@ -300,12 +333,10 @@ onMounted(async () => {
     }
 })
 
-// Partidos pendientes
 const partidosProximos = computed(() => {
     return todosLosPartidos.value.filter(p => p.estado !== 'Finalizado')
 })
 
-// Partidos con resultados
 const partidosFinalizados = computed(() => {
     return todosLosPartidos.value.filter(p => p.estado === 'Finalizado')
 })
@@ -313,13 +344,11 @@ const partidosFinalizados = computed(() => {
 const abrirFichaTecnica = async (partido) => {
     modalAbierto.value = true;
     cargandoFicha.value = true;
-    fichaActual.value = { partido: partido }; // Cargamos la info básica primero
+    fichaActual.value = { partido: partido };
     
     try {
-        // Pedimos los detalles profundos al backend (Alineaciones, puntos, sanciones)
         const detalles = await obtenerFichaTecnicaPublicaService(partido.id_partido);
         
-        // Construimos el objeto completo para el modal
         fichaActual.value = {
             partido: partido,
             alineacionLocal: detalles.alineacionLocal || [],
@@ -337,7 +366,42 @@ const abrirFichaTecnica = async (partido) => {
 
 const cerrarFicha = () => {
     modalAbierto.value = false;
-    setTimeout(() => { fichaActual.value = null; }, 300); // Dar tiempo a la animación
+    setTimeout(() => { fichaActual.value = null; }, 300);
+}
+
+const abrirRostersPartido = async (partido) => {
+    modalRosterAbierto.value = true;
+    cargandoRosters.value = true;
+    partidoRosterActual.value = partido;
+    rosterLocal.value = [];
+    rosterVisitante.value = [];
+
+    try {
+        // Ahora usamos exactamente los nombres de las propiedades que arroja la base de datos
+        const [resLocal, resVisitante] = await Promise.all([
+            obtenerRosterPublicoService(partido.id_torneo, partido.id_local),
+            obtenerRosterPublicoService(partido.id_torneo, partido.id_visitante)
+        ]);
+        
+        rosterLocal.value = resLocal || [];
+        rosterVisitante.value = resVisitante || [];
+        
+    } catch (error) {
+        console.error("Error cargando rosters del partido:", error);
+        alert("Ocurrió un error de conexión al intentar cargar los rosters.");
+        modalRosterAbierto.value = false;
+    } finally {
+        cargandoRosters.value = false;
+    }
+}
+
+const cerrarRosters = () => {
+    modalRosterAbierto.value = false;
+    setTimeout(() => { 
+        partidoRosterActual.value = null;
+        rosterLocal.value = [];
+        rosterVisitante.value = [];
+    }, 300);
 }
 
 const formatFecha = (fechaString) => {

@@ -210,6 +210,22 @@ const obtenerTodosActivos = async () => {
 };
 
 const obtenerEquiposElegibles = async (id_torneo) => {
+    const torneoQuery = await db.select({
+        id_clasificacion: schema.torneos.idClasificacion,
+        fecha_inicio: schema.torneos.fechaInicio,
+        fecha_fin: schema.torneos.fechaFin
+    })
+    .from(schema.torneos)
+    .where(eq(schema.torneos.idTorneo, id_torneo))
+    .limit(1);
+    if (torneoQuery.length === 0) throw new Error("Torneo no encontrado");
+    const { id_clasificacion: clasificacionTorneo, fecha_inicio, fecha_fin } = torneoQuery[0];
+    const formatYYYYMMDD = (d) => {
+        const date = new Date(d);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    const inicioStr = formatYYYYMMDD(fecha_inicio);
+    const finStr = formatYYYYMMDD(fecha_fin);
     const rows = await db.select({
         id_equipo: schema.equipos.idEquipo,
         nombre_oficial: schema.equipos.nombreOficial,
@@ -227,10 +243,24 @@ const obtenerEquiposElegibles = async (id_torneo) => {
     .where(
         and(
             eq(schema.equipos.activo, true),
-            sql`${schema.equipos.idEquipo} NOT IN (
-                SELECT id_equipo 
-                FROM inscripciones 
-                WHERE id_torneo = ${id_torneo} AND estado_inscripcion != 'Rechazada'
+            eq(schema.equipos.idClasificacion, clasificacionTorneo), 
+            sql`NOT EXISTS (
+                SELECT 1 
+                FROM inscripciones i
+                JOIN torneos t ON i.id_torneo = t.id_torneo
+                WHERE i.id_equipo = ${schema.equipos.idEquipo}
+                  AND i.estado_inscripcion IN ('Pendiente', 'Aprobada')
+                  AND (
+                      -- O ya está en ESTE mismo torneo
+                      i.id_torneo = ${id_torneo}
+                      OR
+                      -- O está en OTRO torneo con fechas que chocan (y que no ha sido cancelado)
+                      (
+                          t.estado NOT IN ('Cancelado', 'Finalizado')
+                          AND t.fecha_inicio <= ${finStr} 
+                          AND t.fecha_fin >= ${inicioStr}
+                      )
+                  )
             )`
         )
     );
@@ -276,6 +306,64 @@ const obtenerEquiposInscritos = async (id_torneo) => {
 
     return rows;
 };
+const obtenerInscripcionesPorTorneo = async (id_torneo) => {
+    const rows = await db.select({
+        id_inscripcion: schema.inscripciones.idInscripcion,
+        id_equipo: schema.inscripciones.idEquipo,
+        estado_inscripcion: schema.inscripciones.estadoInscripcion,
+        fecha_inscripcion: schema.inscripciones.fechaInscripcion,
+        nombre_oficial: schema.equipos.nombreOficial,
+        siglas: schema.equipos.siglas,
+        nombre_cancha: schema.canchas.nombreCancha,
+        total_jugadores: sql`(
+            SELECT COUNT(*)::int 
+            FROM plantilla_equipo pe 
+            WHERE pe.id_equipo = ${schema.equipos.idEquipo} 
+              AND pe.activo = true
+        )`.as('total_jugadores')
+    })
+    .from(schema.inscripciones)
+    .innerJoin(schema.equipos, eq(schema.inscripciones.idEquipo, schema.equipos.idEquipo))
+    .leftJoin(schema.canchas, eq(schema.equipos.idCancha, schema.canchas.idCancha))
+    .where(eq(schema.inscripciones.idTorneo, id_torneo)) 
+    .orderBy(schema.inscripciones.fechaInscripcion);
+
+    return rows;
+};
+const responderInscripcion = async (id_torneo, id_equipo, estado_nuevo) => {
+    return await db.transaction(async (tx) => {
+        if (estado_nuevo === 'Aprobada') {
+            const torneoInfo = await tx.select({ numero_equipos: schema.torneos.numeroEquipos })
+                .from(schema.torneos)
+                .where(eq(schema.torneos.idTorneo, id_torneo))
+                .limit(1);
+
+            const aprobadas = await tx.select({ count: count() })
+                .from(schema.inscripciones)
+                .where(
+                    and(
+                        eq(schema.inscripciones.idTorneo, id_torneo),
+                        eq(schema.inscripciones.estadoInscripcion, 'Aprobada')
+                    )
+                );
+
+            if (Number(aprobadas[0].count) >= torneoInfo[0].numero_equipos) {
+                throw new Error('REGLA_TORNEO: El torneo ya alcanzó su límite máximo de equipos aprobados.');
+            }
+        }
+        const [inscripcionActualizada] = await tx.update(schema.inscripciones)
+            .set({ estadoInscripcion: estado_nuevo })
+            .where(
+                and(
+                    eq(schema.inscripciones.idTorneo, id_torneo),
+                    eq(schema.inscripciones.idEquipo, id_equipo)
+                )
+            )
+            .returning();
+            
+        return inscripcionActualizada;
+    });
+};
 
 const obtenerTorneosDeEntrenador = async (id_entrenador) => {
     const rows = await db.select({
@@ -308,7 +396,9 @@ module.exports = {
     editarTorneo, 
     iniciarTorneo, 
     eliminarTorneo, 
-    quitarEquipo, 
+    quitarEquipo,
+        responderInscripcion,
+    obtenerInscripcionesPorTorneo,
     obtenerTodosActivos, 
     obtenerEquiposElegibles, 
     inscribirEquipo, 

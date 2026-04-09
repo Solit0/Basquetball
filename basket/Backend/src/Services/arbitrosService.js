@@ -1,6 +1,6 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, ne, notInArray, desc, asc, count, sql } = require('drizzle-orm');
+const { eq, and, ne, notInArray, desc, asc, count, sql, or } = require('drizzle-orm');
 const { alias } = require('drizzle-orm/pg-core');
 
 const obtenerTorneosAsignados = async (id_arbitro) => {
@@ -16,7 +16,11 @@ const obtenerTorneosAsignados = async (id_arbitro) => {
     .leftJoin(schema.clasificacionEquipo, eq(schema.torneos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
     .where(
         and(
-            eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+            or(
+                eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente1, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente2, id_arbitro)
+            ),
             ne(schema.partidos.estado, 'Finalizado'),
             notInArray(schema.torneos.estado, ['Cancelado', 'Archivado'])
         )
@@ -41,7 +45,13 @@ const obtenerPartidosPorTorneo = async (id_arbitro, id_torneo) => {
         local_siglas: equipoLocal.siglas,
         visitante_nombre: equipoVisitante.nombreOficial,
         visitante_siglas: equipoVisitante.siglas,
-        nombre_cancha: schema.canchas.nombreCancha
+        nombre_cancha: schema.canchas.nombreCancha,
+        id_arbitro_principal: schema.partidos.idArbitroPrincipal, 
+        rol_arbitral: sql`CASE 
+            WHEN ${schema.partidos.idArbitroPrincipal} = ${id_arbitro} THEN 'Principal' 
+            WHEN ${schema.partidos.idArbitroAsistente1} = ${id_arbitro} THEN 'Asistente 1' 
+            ELSE 'Asistente 2' 
+        END`.as('rol_arbitral')
     })
     .from(schema.partidos)
     .innerJoin(equipoLocal, eq(schema.partidos.idEquipoLocal, equipoLocal.idEquipo))
@@ -49,7 +59,11 @@ const obtenerPartidosPorTorneo = async (id_arbitro, id_torneo) => {
     .innerJoin(schema.canchas, eq(schema.partidos.idCancha, schema.canchas.idCancha))
     .where(
         and(
-            eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+            or(
+                eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente1, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente2, id_arbitro)
+            ),
             eq(schema.partidos.idTorneo, id_torneo),
             ne(schema.partidos.estado, 'Finalizado')
         )
@@ -80,7 +94,13 @@ const obtenerDetallePartido = async (id_arbitro, id_partido) => {
         visitante_entrenador_nombre: usuarioVisitante.nombre,
         visitante_entrenador_apellido: usuarioVisitante.apellido,
         nombre_cancha: schema.canchas.nombreCancha,
-        cancha_direccion: schema.canchas.direccion
+        cancha_direccion: schema.canchas.direccion,
+        id_arbitro_principal: schema.partidos.idArbitroPrincipal,
+        rol_arbitral: sql`CASE 
+            WHEN ${schema.partidos.idArbitroPrincipal} = ${id_arbitro} THEN 'Principal' 
+            WHEN ${schema.partidos.idArbitroAsistente1} = ${id_arbitro} THEN 'Asistente 1' 
+            ELSE 'Asistente 2' 
+        END`.as('rol_arbitral')
     })
     .from(schema.partidos)
     .innerJoin(equipoLocal, eq(schema.partidos.idEquipoLocal, equipoLocal.idEquipo))
@@ -91,7 +111,11 @@ const obtenerDetallePartido = async (id_arbitro, id_partido) => {
     .where(
         and(
             eq(schema.partidos.idPartido, id_partido),
-            eq(schema.partidos.idArbitroPrincipal, id_arbitro)
+            or(
+                eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente1, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente2, id_arbitro)
+            )
         )
     )
     .limit(1);
@@ -112,7 +136,13 @@ const obtenerTodosPartidosAsignados = async (id_arbitro) => {
         nombre_torneo: schema.torneos.nombreTorneo,
         local_nombre: equipoLocal.nombreOficial,
         visitante_nombre: equipoVisitante.nombreOficial,
-        nombre_cancha: schema.canchas.nombreCancha
+        nombre_cancha: schema.canchas.nombreCancha,
+        id_arbitro_principal: schema.partidos.idArbitroPrincipal,
+        rol_arbitral: sql`CASE 
+            WHEN ${schema.partidos.idArbitroPrincipal} = ${id_arbitro} THEN 'Principal' 
+            WHEN ${schema.partidos.idArbitroAsistente1} = ${id_arbitro} THEN 'Asistente 1' 
+            ELSE 'Asistente 2' 
+        END`.as('rol_arbitral')
     })
     .from(schema.partidos)
     .innerJoin(schema.torneos, eq(schema.partidos.idTorneo, schema.torneos.idTorneo))
@@ -121,7 +151,11 @@ const obtenerTodosPartidosAsignados = async (id_arbitro) => {
     .innerJoin(schema.canchas, eq(schema.partidos.idCancha, schema.canchas.idCancha))
     .where(
         and(
-            eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+            or(
+                eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente1, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente2, id_arbitro)
+            ),
             ne(schema.partidos.estado, 'Finalizado')
         )
     )
@@ -131,44 +165,93 @@ const obtenerTodosPartidosAsignados = async (id_arbitro) => {
 };
 
 const marcarAsistenciaJugador = async (id_partido, id_jugador, estado) => {
-    const rows = await db.insert(schema.asistenciaPartidos)
-        .values({
-            idPartido: id_partido,
-            idJugador: id_jugador,
-            estado: estado
-        })
-        .onConflictDoUpdate({
-            
-            target: [schema.asistenciaPartidos.idPartido, schema.asistenciaPartidos.idJugador],
-            set: { estado: estado }
-        })
-        .returning();
+    try {
+        const partidoInfo = await db.select({ idTorneo: schema.partidos.idTorneo })
+            .from(schema.partidos)
+            .where(eq(schema.partidos.idPartido, id_partido))
+            .limit(1);
+        if (partidoInfo.length === 0) throw new Error("Partido no encontrado");
+        const idTorneo = partidoInfo[0].idTorneo;
+        const rosterInfo = await db.select({ idRoster: schema.rosterTorneo.idRoster })
+            .from(schema.rosterTorneo)
+            .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
+            .where(
+                and(
+                    eq(schema.rosterTorneo.idJugador, id_jugador),
+                    eq(schema.inscripciones.idTorneo, idTorneo)
+                )
+            )
+            .limit(1);
 
-    return rows[0];
+        if (rosterInfo.length === 0) throw new Error("El jugador no está en el roster de este torneo");
+        const idRoster = rosterInfo[0].idRoster;
+        const asistenciaExistente = await db.select()
+            .from(schema.asistenciaPartidos)
+            .where(
+                and(
+                    eq(schema.asistenciaPartidos.idPartido, id_partido),
+                    eq(schema.asistenciaPartidos.idRoster, idRoster)
+                )
+            )
+            .limit(1);
+
+        if (asistenciaExistente.length > 0) {
+            const rows = await db.update(schema.asistenciaPartidos)
+                .set({ estado: estado })
+                .where(
+                    and(
+                        eq(schema.asistenciaPartidos.idPartido, id_partido),
+                        eq(schema.asistenciaPartidos.idRoster, idRoster)
+                    )
+                )
+                .returning();
+            return rows[0];
+        } else {
+            const rows = await db.insert(schema.asistenciaPartidos)
+                .values({
+                    idPartido: id_partido,
+                    idRoster: idRoster,
+                    estado: estado
+                })
+                .returning();
+            return rows[0];
+        }
+    } catch (error) {
+        console.error("Error en marcarAsistenciaJugador:", error);
+        throw error;
+    }
 };
-
 const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
+    const partidoInfo = await db.select({ idTorneo: schema.partidos.idTorneo })
+        .from(schema.partidos)
+        .where(eq(schema.partidos.idPartido, id_partido))
+        .limit(1);
+        
+    if (partidoInfo.length === 0) return [];
+    const idTorneo = partidoInfo[0].idTorneo;
+    
     const rows = await db.select({
-        id_jugador: schema.jugadores.idJugador,
+        id_jugador: schema.rosterTorneo.idJugador, 
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
-        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-        es_capitan: schema.plantillaEquipo.esCapitan,
+        numero_camiseta: schema.rosterTorneo.numeroCamiseta, 
+        es_capitan: schema.rosterTorneo.esCapitan, 
         estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Pendiente')`.as('estado_asistencia')
     })
-    .from(schema.jugadores)
-    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+    .from(schema.rosterTorneo)
+    .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
+    .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
     .leftJoin(schema.asistenciaPartidos, and(
-        eq(schema.jugadores.idJugador, schema.asistenciaPartidos.idJugador),
+        eq(schema.rosterTorneo.idRoster, schema.asistenciaPartidos.idRoster),
         eq(schema.asistenciaPartidos.idPartido, id_partido)
     ))
     .where(
         and(
-            eq(schema.plantillaEquipo.idEquipo, id_equipo),
-            eq(schema.plantillaEquipo.activo, true)
+            eq(schema.inscripciones.idEquipo, id_equipo),
+            eq(schema.inscripciones.idTorneo, idTorneo)
         )
     )
-    .orderBy(asc(schema.plantillaEquipo.numeroCamiseta));
+    .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
 
     return rows;
 };
@@ -181,7 +264,6 @@ const actualizarEstadoPartido = async (id_partido, estado) => {
 
     return rows[0];
 };
-
 const obtenerTorneosHistorial = async (id_arbitro) => {
     const rows = await db.select({
         id_torneo: schema.torneos.idTorneo,
@@ -195,7 +277,11 @@ const obtenerTorneosHistorial = async (id_arbitro) => {
     .leftJoin(schema.clasificacionEquipo, eq(schema.torneos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
     .where(
         and(
-            eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+            or(
+                eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente1, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente2, id_arbitro)
+            ),
             eq(schema.partidos.estado, 'Finalizado')
         )
     )
@@ -219,7 +305,12 @@ const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
         visitante_siglas: equipoVisitante.siglas,
         nombre_cancha: schema.canchas.nombreCancha,
         marcador_local: schema.partidos.marcadorLocal,
-        marcador_visitante: schema.partidos.marcadorVisitante
+        marcador_visitante: schema.partidos.marcadorVisitante,
+        rol_arbitral: sql`CASE 
+            WHEN ${schema.partidos.idArbitroPrincipal} = ${id_arbitro} THEN 'Principal' 
+            WHEN ${schema.partidos.idArbitroAsistente1} = ${id_arbitro} THEN 'Asistente 1' 
+            ELSE 'Asistente 2' 
+        END`.as('rol_arbitral')
     })
     .from(schema.partidos)
     .innerJoin(equipoLocal, eq(schema.partidos.idEquipoLocal, equipoLocal.idEquipo))
@@ -227,7 +318,11 @@ const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
     .innerJoin(schema.canchas, eq(schema.partidos.idCancha, schema.canchas.idCancha))
     .where(
         and(
-            eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+            or(
+                eq(schema.partidos.idArbitroPrincipal, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente1, id_arbitro),
+                eq(schema.partidos.idArbitroAsistente2, id_arbitro)
+            ),
             eq(schema.partidos.idTorneo, id_torneo),
             eq(schema.partidos.estado, 'Finalizado')
         )
@@ -236,11 +331,18 @@ const obtenerPartidosHistorial = async (id_arbitro, id_torneo) => {
 
     return rows;
 };
+
 const obtenerResumenFinalizado = async (id_partido) => {
+    const partidoInfo = await db.select({ idTorneo: schema.partidos.idTorneo })
+        .from(schema.partidos)
+        .where(eq(schema.partidos.idPartido, id_partido))
+        .limit(1);
+    const idTorneo = partidoInfo[0]?.idTorneo;
     const informeRows = await db.select({ contenido: schema.informesPartido.contenido })
         .from(schema.informesPartido)
         .where(eq(schema.informesPartido.idPartido, id_partido))
         .limit(1);
+        
     const sancionesRows = await db.select({
         tipo_sancion: schema.sanciones.tipoSancion,
         motivo: schema.sanciones.motivo,
@@ -250,11 +352,12 @@ const obtenerResumenFinalizado = async (id_partido) => {
     })
     .from(schema.sanciones)
     .innerJoin(schema.jugadores, eq(schema.sanciones.idJugador, schema.jugadores.idJugador))
-    .innerJoin(schema.alineaciones, and(
-        eq(schema.sanciones.idJugador, schema.alineaciones.idJugador),
-        eq(schema.sanciones.idPartido, schema.alineaciones.idPartido)
+    .innerJoin(schema.rosterTorneo, eq(schema.jugadores.idJugador, schema.rosterTorneo.idJugador))
+    .innerJoin(schema.inscripciones, and(
+        eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion),
+        eq(schema.inscripciones.idTorneo, idTorneo)
     ))
-    .innerJoin(schema.equipos, eq(schema.alineaciones.idEquipo, schema.equipos.idEquipo))
+    .innerJoin(schema.equipos, eq(schema.inscripciones.idEquipo, schema.equipos.idEquipo))
     .where(eq(schema.sanciones.idPartido, id_partido));
 
     return {

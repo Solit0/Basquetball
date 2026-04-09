@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <NavbarEspectador />
-
-    <main class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+  <div :class="mostrarNavbarPublico ? 'min-h-screen bg-gray-50' : 'bg-gray-50'">
+    <NavbarEspectador v-if="mostrarNavbarPublico" />
+  
+    <main :class="mostrarNavbarPublico ? 'max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8' : 'py-4'">
       <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <h2 class="text-3xl font-black text-gray-900 tracking-tight">Calendario de Partidos</h2>
@@ -71,8 +71,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onUnmounted,computed, onMounted } from 'vue'
 import NavbarEspectador from '../../components/NavbarEspectador.vue'
+import AdminSidebar from '@/components/AdminSidebar.vue'
 import { obtenerPartidosPublicosService } from '../../services/partidosService'
 
 const cargando = ref(true)
@@ -93,12 +94,22 @@ const cargarPartidos = async () => {
   }
 }
 
+
+const props = defineProps({
+  esAdmin: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const mostrarNavbarPublico = computed(() => !props.esAdmin)
 onMounted(cargarPartidos)
+
 
 const obtenerDiasMes = (mes, anio) => {
   const primerDia = new Date(anio, mes, 1)
   const ultimoDia = new Date(anio, mes + 1, 0)
-  const diasPrevios = (primerDia.getDay() + 6) % 7 // lunes=0, dom=6
+  const diasPrevios = (primerDia.getDay() + 6) % 7 
   const totalCeldas = 42
   const dias = []
 
