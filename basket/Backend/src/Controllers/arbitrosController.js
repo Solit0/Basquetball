@@ -48,10 +48,12 @@ const setAsistencia = async (req, res, next) => {
         const resultado = await arbitrosService.marcarAsistenciaJugador(id_partido, id_jugador, estado);
         res.status(200).json({ mensaje: 'Asistencia actualizada', data: resultado });
     } catch (error) {
+        if (error.message && error.message.includes('Regla_Sancion')) {
+            return res.status(400).json({ error: error.message.replace('Regla_Sancion: ', '') });
+        }
         next(error);
     }
 };
-
 const getAlineacion = async (req, res, next) => {
     try {
         const { id_partido, id_equipo } = req.params;

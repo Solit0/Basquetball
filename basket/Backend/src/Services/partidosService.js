@@ -172,7 +172,10 @@ const obtenerPorTorneo = async (id_torneo) => {
 };
 
 const obtenerResumenPartido = async (id_partido) => {
-    const pInfo = await db.select({ id_torneo: schema.partidos.idTorneo }).from(schema.partidos).where(eq(schema.partidos.idPartido, id_partido)).limit(1);
+    const pInfo = await db.select({ id_torneo: schema.partidos.idTorneo })
+        .from(schema.partidos)
+        .where(eq(schema.partidos.idPartido, id_partido))
+        .limit(1);
     const idTorneo = pInfo[0]?.id_torneo;
 
     const resPuntos = await db.select({
@@ -183,25 +186,28 @@ const obtenerResumenPartido = async (id_partido) => {
         numero_camiseta: schema.rosterTorneo.numeroCamiseta
     })
     .from(schema.estadisticasPartido)
-    .innerJoin(schema.jugadores, eq(schema.estadisticasPartido.idJugador, schema.jugadores.idJugador))
-    .innerJoin(schema.rosterTorneo, eq(schema.jugadores.idJugador, schema.rosterTorneo.idJugador))
-    .innerJoin(schema.inscripciones, and(eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion), eq(schema.inscripciones.idTorneo, idTorneo)))
+    .innerJoin(schema.rosterTorneo, eq(schema.estadisticasPartido.idRoster, schema.rosterTorneo.idRoster))
+    .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
+    .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
     .where(eq(schema.estadisticasPartido.idPartido, id_partido))
     .orderBy(desc(schema.estadisticasPartido.puntosAnotados));
 
     const resSanciones = await db.select({
         tipo_sancion: schema.sanciones.tipoSancion,
         motivo: schema.sanciones.motivo,
-        fecha_fin: schema.sanciones.fechaFin,
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
         numero_camiseta: schema.rosterTorneo.numeroCamiseta,
-        id_equipo: schema.inscripciones.idEquipo
+        id_equipo: schema.inscripciones.idEquipo,
+        estado_resolucion: schema.sanciones.estadoResolucion 
     })
     .from(schema.sanciones)
     .innerJoin(schema.jugadores, eq(schema.sanciones.idJugador, schema.jugadores.idJugador))
     .innerJoin(schema.rosterTorneo, eq(schema.jugadores.idJugador, schema.rosterTorneo.idJugador))
-    .innerJoin(schema.inscripciones, and(eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion), eq(schema.inscripciones.idTorneo, idTorneo)))
+    .innerJoin(schema.inscripciones, and(
+        eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion), 
+        eq(schema.inscripciones.idTorneo, idTorneo)
+    ))
     .where(eq(schema.sanciones.idPartido, id_partido));
 
     const resInforme = await db.select({ contenido: schema.informesPartido.contenido })
@@ -453,13 +459,13 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
     if (partidoInfo.length === 0) throw new Error("Partido no encontrado");
     const { id_torneo, id_equipo_local, id_equipo_visitante } = partidoInfo[0];
 
-    // 🔴 MIGRADO AL NUEVO ROSTER
     const getAlineacion = async (idEquipo) => {
         return await db.select({
             id_jugador: schema.rosterTorneo.idJugador,
             estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Ausente')`.as('estado_asistencia'),
             puntos_anotados: sql`COALESCE(${schema.estadisticasPartido.puntosAnotados}, 0)`.as('puntos_anotados'),
-            rol_partido: sql`COALESCE(${schema.alineaciones.rolPartido}, ${schema.rosterTorneo.rolRoster}, 'Suplente')`.as('rol_partido'),
+            // Tomamos el rol directamente del roster oficial
+            rol_partido: schema.rosterTorneo.rolRoster, 
             nombre: schema.jugadores.nombre,
             apellido: schema.jugadores.apellido,
             numero_camiseta: schema.rosterTorneo.numeroCamiseta,
@@ -468,17 +474,15 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
         .from(schema.rosterTorneo)
         .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
         .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
+        
         .leftJoin(schema.asistenciaPartidos, and(
-            eq(schema.rosterTorneo.idJugador, schema.asistenciaPartidos.idJugador),
+            eq(schema.rosterTorneo.idRoster, schema.asistenciaPartidos.idRoster),
             eq(schema.asistenciaPartidos.idPartido, id_partido)
         ))
+        
         .leftJoin(schema.estadisticasPartido, and(
-            eq(schema.rosterTorneo.idJugador, schema.estadisticasPartido.idJugador),
+            eq(schema.rosterTorneo.idRoster, schema.estadisticasPartido.idRoster),
             eq(schema.estadisticasPartido.idPartido, id_partido)
-        ))
-        .leftJoin(schema.alineaciones, and(
-            eq(schema.rosterTorneo.idJugador, schema.alineaciones.idJugador),
-            eq(schema.alineaciones.idPartido, id_partido)
         ))
         .where(
             and(
@@ -515,7 +519,6 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
         sanciones
     };
 };
-
 module.exports = { 
     crearMultiples, 
     obtenerPorTorneo, 

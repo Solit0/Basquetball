@@ -26,8 +26,20 @@ const obtenerJugadoresPorEquipo = async (id_equipo) => {
         id_jugador: schema.jugadores.idJugador,
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
+        fecha_nacimiento: schema.jugadores.fechaNacimiento,
+        posicion: schema.jugadores.posicion,
+        estatura: schema.jugadores.estatura,
         numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-        es_capitan: schema.plantillaEquipo.esCapitan
+        rol_equipo: schema.plantillaEquipo.rolEquipo,
+        es_capitan: schema.plantillaEquipo.esCapitan,
+        esta_suspendido: sql`EXISTS (
+            SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.jugadores.idJugador}
+              AND rd.estado = 'Activa'
+              AND rd.partidos_suspension > rd.partidos_cumplidos
+        )`.as('esta_suspendido')
+
     })
     .from(schema.jugadores)
     .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
@@ -36,8 +48,7 @@ const obtenerJugadoresPorEquipo = async (id_equipo) => {
             eq(schema.plantillaEquipo.idEquipo, id_equipo),
             eq(schema.plantillaEquipo.activo, true)
         )
-    )
-    .orderBy(asc(schema.plantillaEquipo.numeroCamiseta));
+    );
 
     return rows;
 };
