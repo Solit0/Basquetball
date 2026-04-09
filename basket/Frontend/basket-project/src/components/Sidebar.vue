@@ -69,26 +69,6 @@
                     </svg>
                 </div>
             </button>
-            <button @click="$emit('navigate', 'alineacion')"
-                :class="[
-                    'w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors',
-                    activeTab === 'alineacion'
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-800'
-                ]">
-                <div class="flex items-center">
-                    <svg class="mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M6 3a1 1 0 000 2h2a1 1 0 100-2H6zm3.293 4.707a1 1 0 010-1.414l1.414-1.414a1 1 0 111.414 1.414L11.414 7.707a1 1 0 01-1.414 0zM10 11a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zm3.293 4.707a1 1 0 010-1.414l1.414-1.414a1 1 0 111.414 1.414L14.414 15.707a1 1 0 01-1.414 0zM6 9a1 1 0 000-2h2a1 1 0 100-2H6a3 3 0 00-3 3v2a3 3 0 003-3zm9-4h2a3 3 0 013 
-                            -3v2a3 
-                            -3 0 00-3 3v2a3 3 0 003-3h-2a1 1 0 110-2zM6 15a1 1 0 100-2h2a1 1 0 100-2H6a3 3 0 00-3 3v2a3 3 0 003-3zm9-4h2a3 3 0 013-3v2a3 3 0 00 
-                            -3 3v2a3 3 0 003-3h-2a1 1 0 110-2z"
-                            clip-rule="evenodd" />
-                    </svg>  
-                    Alineación
-                </div>
-            </button>
             <button @click ="$emit('navigate', 'inscribir-torneos')"
                 :class="[
                     'w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors',

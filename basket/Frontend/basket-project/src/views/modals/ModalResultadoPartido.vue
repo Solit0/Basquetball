@@ -34,42 +34,7 @@
                             </div>
                         </div>
 
-                        <div class="mt-6 border-t border-gray-100 pt-6">
-                            <h5 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Terna Arbitral Asignada</h5>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-lg">
-                                    <label class="block text-[10px] font-black text-indigo-500 uppercase mb-1">Árbitro Principal</label>
-                                    <select v-model="form.id_arbitro_principal" disabled class="w-full bg-transparent text-indigo-900 font-bold text-sm outline-none appearance-none cursor-not-allowed">
-                                        <option value="" disabled>Cargando...</option>
-                                        <option v-for="arb in listaArbitros" :key="'p_'+arb.id_usuario" :value="arb.id_usuario">
-                                            {{ arb.nombre }} {{ arb.apellido }}
-                                        </option>
-                                    </select>
-                                </div>
-                                
-                                <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Asistente 1</label>
-                                    <select v-model="form.id_arbitro_asistente1" disabled class="w-full bg-transparent text-gray-700 font-bold text-sm outline-none appearance-none cursor-not-allowed">
-                                        <option value="" disabled>Cargando...</option>
-                                        <option v-for="arb in listaArbitros" :key="'a1_'+arb.id_usuario" :value="arb.id_usuario">
-                                            {{ arb.nombre }} {{ arb.apellido }}
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Asistente 2</label>
-                                    <select v-model="form.id_arbitro_asistente2" disabled class="w-full bg-transparent text-gray-700 font-bold text-sm outline-none appearance-none cursor-not-allowed">
-                                        <option value="" disabled>Cargando...</option>
-                                        <option v-for="arb in listaArbitros" :key="'a2_'+arb.id_usuario" :value="arb.id_usuario">
-                                            {{ arb.nombre }} {{ arb.apellido }}
-                                        </option>
-                                    </select>
-                                </div>
-                            </div>
                         </div>
-                    </div>
 
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                         <h4 class="text-sm font-black text-indigo-400 uppercase tracking-widest mb-4 border-b pb-2">2. Puntos Individuales</h4>
@@ -77,14 +42,14 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
                                 <h5 class="font-bold text-gray-800 bg-indigo-50 px-3 py-2 rounded text-sm mb-3">Equipo Local: {{ partido.local_nombre }}</h5>
-                                <div v-if="jugadoresLocal.length === 0" class="text-xs text-gray-500 italic">No hay jugadores registrados en este equipo.</div>
+                                <div v-if="puntosLocal.length === 0" class="text-xs text-gray-500 italic">No hay jugadores registrados en este equipo.</div>
                                 <div v-for="jugador in puntosLocal" :key="jugador.id_jugador" class="flex justify-between items-center mb-2 border-b border-gray-50 pb-2">
                                     
                                     <div class="text-sm text-gray-700 truncate pr-2 flex items-center">
                                         <span class="mr-2">#{{ jugador.numero_camiseta || '-' }}</span>
                                         <span>{{ jugador.nombre }} {{ jugador.apellido }}</span>
                                         
-                                        <span v-if="jugador.es_capitan === true || jugador.es_capitan === 'true' || jugador.rol === 'Capitán'" 
+                                        <span v-if="jugador.es_capitan" 
                                               class="ml-2 text-[9px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded shadow-sm border border-yellow-500">
                                             © CAP
                                         </span>
@@ -96,14 +61,14 @@
 
                             <div>
                                 <h5 class="font-bold text-gray-800 bg-gray-100 px-3 py-2 rounded text-sm mb-3">Equipo Visitante: {{ partido.visitante_nombre }}</h5>
-                                <div v-if="jugadoresVisitante.length === 0" class="text-xs text-gray-500 italic">No hay jugadores registrados en este equipo.</div>
+                                <div v-if="puntosVisitante.length === 0" class="text-xs text-gray-500 italic">No hay jugadores registrados en este equipo.</div>
                                 <div v-for="jugador in puntosVisitante" :key="jugador.id_jugador" class="flex justify-between items-center mb-2 border-b border-gray-50 pb-2">
                                     
                                     <div class="text-sm text-gray-700 truncate pr-2 flex items-center">
                                         <span class="mr-2">#{{ jugador.numero_camiseta || '-' }}</span>
                                         <span>{{ jugador.nombre }} {{ jugador.apellido }}</span>
                                         
-                                        <span v-if="jugador.es_capitan === true || jugador.es_capitan === 'true' || jugador.rol === 'Capitán'" 
+                                        <span v-if="jugador.es_capitan" 
                                               class="ml-2 text-[9px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded shadow-sm border border-yellow-500">
                                             © CAP
                                         </span>
@@ -148,7 +113,7 @@
                             </button>
                         </div>
                         
-                        <p class="text-xs text-gray-500 mb-4">Registra las faltas graves cometidas en este partido. Las sanciones ya no requieren fecha de inicio o fin.</p>
+                        <p class="text-xs text-gray-500 mb-4">Registra las faltas graves cometidas en este partido.</p>
 
                         <div v-if="sanciones.length === 0" class="text-center text-sm text-gray-400 py-2">No se han registrado infracciones.</div>
                         
@@ -162,14 +127,14 @@
                                         <option value="" disabled>Seleccione jugador...</option>
                                         
                                         <optgroup :label="'Local: ' + partido.local_nombre">
-                                            <option v-for="j in jugadoresLocal" :value="j.id_jugador" :key="'L'+j.id_jugador">
-                                                {{ j.nombre }} {{ j.apellido }} {{ (j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán') ? ' (© CAP)' : '' }}
+                                            <option v-for="j in puntosLocal" :value="j.id_jugador" :key="'L'+j.id_jugador">
+                                                {{ j.nombre }} {{ j.apellido }} {{ j.es_capitan ? ' (© CAP)' : '' }}
                                             </option>
                                         </optgroup>
                                         
                                         <optgroup :label="'Visitante: ' + partido.visitante_nombre">
-                                            <option v-for="j in jugadoresVisitante" :value="j.id_jugador" :key="'V'+j.id_jugador">
-                                                {{ j.nombre }} {{ j.apellido }} {{ (j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán') ? ' (© CAP)' : '' }}
+                                            <option v-for="j in puntosVisitante" :value="j.id_jugador" :key="'V'+j.id_jugador">
+                                                {{ j.nombre }} {{ j.apellido }} {{ j.es_capitan ? ' (© CAP)' : '' }}
                                             </option>
                                         </optgroup>
                                         
@@ -202,7 +167,7 @@
                 <button form="resultadoForm" type="submit" :disabled="procesando" 
                         class="px-8 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition disabled:opacity-50 flex items-center">
                     <svg v-if="procesando" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    {{ procesando ? 'Guardando...' : 'Finalizar Partido y Eliminar Perdedor' }}
+                    {{ procesando ? 'Guardando...' : 'Finalizar Partido y Cerrar Acta' }}
                 </button>
             </div>
         </div>
@@ -211,9 +176,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { obtenerUsuariosService } from '../../services/usuarioService'
 import { obtenerAlineacionPartidoService } from '../../services/arbitrosService'
-import { obtenerJugadoresPorEquipoService } from '../../services/equiposService'
 import { finalizarPartidoService } from '../../services/partidosService'
 
 const props = defineProps({
@@ -224,9 +187,6 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const procesando = ref(false)
-const listaArbitros = ref([])
-const jugadoresLocal = ref([])
-const jugadoresVisitante = ref([])
 
 const puntosLocal = ref([])
 const puntosVisitante = ref([])
@@ -236,31 +196,21 @@ const sanciones = ref([])
 const form = ref({
     marcador_local: 0,
     marcador_visitante: 0,
-    id_arbitro_principal: null,
-    id_arbitro_asistente1: null,
-    id_arbitro_asistente2: null,
     informe_contenido: ''
 })
 
 onMounted(async () => {
     try {
-        const usuarios = await obtenerUsuariosService();
-        listaArbitros.value = usuarios.filter(u => u.rol === 'arbitro');
+        const alineacionLocal = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_local || props.partido.id_equipo_local);
+        const alineacionVisitante = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_visitante || props.partido.id_equipo_visitante);
         
-        form.value.id_arbitro_principal = props.partido.id_arbitro_principal || null;
-        form.value.id_arbitro_asistente1 = props.partido.id_arbitro_asistente1 || null;
-        form.value.id_arbitro_asistente2 = props.partido.id_arbitro_asistente2 || null;
-        
-        const alineacionLocal = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_equipo_local);
-        const alineacionVisitante = await obtenerAlineacionPartidoService(props.partido.id_partido, props.partido.id_equipo_visitante);
-        
-        jugadoresLocal.value = alineacionLocal.filter(j => j.estado_asistencia === 'Presente');
-        jugadoresVisitante.value = alineacionVisitante.filter(j => j.estado_asistencia === 'Presente');
+        const jugadoresLocal = alineacionLocal.filter(j => j.estado_asistencia === 'Presente');
+        const jugadoresVisitante = alineacionVisitante.filter(j => j.estado_asistencia === 'Presente');
 
-        puntosLocal.value = jugadoresLocal.value.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, 
-            numero_camiseta: j.numero_camiseta, puntos: 0, apellido: j.apellido, es_capitan: j.es_capitan, rol: j.rol }));
-        puntosVisitante.value = jugadoresVisitante.value.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, apellido: j.apellido,
-            numero_camiseta: j.numero_camiseta, puntos: 0, es_capitan: j.es_capitan, rol: j.rol }));
+        puntosLocal.value = jugadoresLocal.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, 
+            numero_camiseta: j.numero_camiseta, puntos: 0, apellido: j.apellido, es_capitan: j.es_capitan }));
+        puntosVisitante.value = jugadoresVisitante.map(j => ({ id_jugador: j.id_jugador, nombre: j.nombre, apellido: j.apellido,
+            numero_camiseta: j.numero_camiseta, puntos: 0, es_capitan: j.es_capitan }));
 
     } catch (error) {
         console.error("Error cargando datos del modal", error)
@@ -277,7 +227,6 @@ const agregarSancion = () => {
 }
 
 const guardarResultado = async () => {
-    // Validación de sumas de puntos
     const totalLocal = puntosLocal.value.reduce((suma, jugador) => suma + (jugador.puntos || 0), 0);
     const totalVisitante = puntosVisitante.value.reduce((suma, jugador) => suma + (jugador.puntos || 0), 0);
 
@@ -304,11 +253,11 @@ const guardarResultado = async () => {
 
         const payload = {
             id_torneo: props.idTorneo,
-            id_equipo_local: props.partido.id_equipo_local,
-            id_equipo_visitante: props.partido.id_equipo_visitante,
+            id_equipo_local: props.partido.id_local || props.partido.id_equipo_local,
+            id_equipo_visitante: props.partido.id_visitante || props.partido.id_equipo_visitante,
             marcador_local: parseInt(form.value.marcador_local),
             marcador_visitante: parseInt(form.value.marcador_visitante),
-            id_arbitro: form.value.id_arbitro_principal || null, 
+            id_arbitro: props.partido.id_arbitro_principal, // 🔴 Extraemos el árbitro del objeto partido
             informe_contenido: form.value.informe_contenido,
             incidentes: incidentesLimpios,
             sanciones: sanciones.value,
@@ -316,8 +265,8 @@ const guardarResultado = async () => {
         };
 
         await finalizarPartidoService(props.partido.id_partido, payload);
-        alert('¡Resultado guardado con éxito! El equipo perdedor ha sido eliminado.');
-        emit('close');
+        alert('¡Resultado y acta oficial guardados con éxito!');
+        emit('close', true); // Emitimos un "true" para indicarle a la vista principal que recargue los datos
 
     } catch (error) {
         alert(error.response?.data?.error || "Ocurrió un error al guardar el resultado.")
@@ -328,16 +277,7 @@ const guardarResultado = async () => {
 </script>
 
 <style scoped>
-.animate-fade-in {
-    animation: fadeIn 0.2s ease-out;
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
-}
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
-}
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 </style>

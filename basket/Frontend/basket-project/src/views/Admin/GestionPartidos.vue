@@ -7,7 +7,7 @@
                     <button v-if="torneoSeleccionado" @click="volver" class="mr-3 text-indigo-600 hover:text-indigo-800 transition-colors">&larr;</button>
                     Gestión de Partidos
                 </h2>
-                <p class="text-gray-600 mt-1">Genera las llaves, calendariza los encuentros y registra los resultados finales.</p>
+                <p class="text-gray-600 mt-1">Genera las llaves, calendariza los encuentros y supervisa el progreso del torneo.</p>
             </div>
         </div>
 
@@ -110,18 +110,19 @@
                             <button v-if="partido.estado === 'Finalizado'" @click="abrirModalResumen(partido)"
                                     class="w-full py-2.5 bg-green-50 text-green-700 font-bold text-sm rounded-lg hover:bg-green-100 transition-colors border border-green-200 flex items-center justify-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                Mostrar Resumen
+                                Mostrar Resumen del Árbitro
                             </button>
                             
-                            <button v-else-if="partido.estado === 'En Juego'" @click="abrirModalResultado(partido)"
-                                    class="w-full py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-lg hover:bg-indigo-700 transition-colors border border-indigo-700 shadow-sm animate-pulse">
-                                Registrar Resultado Oficial
+                            <button v-else-if="partido.estado === 'En Juego'" disabled
+                                    class="w-full py-2.5 bg-indigo-50 text-indigo-500 font-bold text-sm rounded-lg cursor-wait border border-indigo-200 flex items-center justify-center animate-pulse" title="El árbitro está dirigiendo el partido">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                En Juego - Esperando acta arbitral...
                             </button>
 
                             <button v-else disabled
-                                    class="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-sm rounded-lg cursor-not-allowed border border-gray-200 flex items-center justify-center" title="El árbitro aún no ha dado inicio al partido">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Esperando al Árbitro...
+                                    class="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-sm rounded-lg cursor-not-allowed border border-gray-200 flex items-center justify-center" title="Aún no ha llegado la fecha del encuentro">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Programado
                             </button>
                         </div>
                     </div>
@@ -210,7 +211,6 @@
 
         </div>
 
-        <ModalResultadoPartido v-if="mostrarModalResultado" :partido="partidoParaEditar" :idTorneo="torneoSeleccionado.id_torneo" @close="cerrarModalYRecargar" />
         <ModalResumenPartido v-if="mostrarModalResumen" :partido="partidoParaResumen" @close="mostrarModalResumen = false; partidoParaResumen = null" />
 
     </div>
@@ -220,7 +220,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { obtenerTorneosActivosService, obtenerEquiposInscritosService } from '../../services/torneosService'
 import { guardarPartidosMultiples, obtenerPartidosPorTorneo } from '../../services/partidosService'
-import ModalResultadoPartido from '../modals/ModalResultadoPartido.vue' 
 import ModalResumenPartido from '../modals/ModalResumenPartido.vue'
 import { obtenerUsuariosService } from '../../services/usuarioService'
 import { obtenerPromedioArbitroService } from '../../services/arbitrosService'
@@ -232,9 +231,8 @@ const partidosOficiales = ref([])
 const partidosGenerados = ref([])
 const procesando = ref(false)
 const listaArbitros = ref([])
-const mostrarModalResultado = ref(false)
-const partidoParaEditar = ref(null)
 
+// 🔴 Eliminamos las variables del ModalResultadoPartido que ya no ocupamos
 const mostrarModalResumen = ref(false)
 const partidoParaResumen = ref(null)
 
@@ -361,7 +359,6 @@ const generarBrackets = () => {
 const validarArbitros = () => {
     const asignacionesTotales = [];
 
-    // Extraer todos los árbitros de los partidos oficiales (ya guardados)
     partidosOficiales.value.forEach(p => {
         const fechaStr = p.fecha.split('T')[0];
         if (p.id_arbitro_principal) asignacionesTotales.push({ id_arb: p.id_arbitro_principal, fecha: fechaStr, hora: p.hora });
@@ -369,14 +366,12 @@ const validarArbitros = () => {
         if (p.id_arbitro_asistente2) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente2, fecha: fechaStr, hora: p.hora });
     });
 
-    // Extraer todos los árbitros de los partidos que se están generando
     partidosGenerados.value.forEach(p => {
         if (p.id_arbitro_principal) asignacionesTotales.push({ id_arb: p.id_arbitro_principal, fecha: p.fecha, hora: p.hora });
         if (p.id_arbitro_asistente1) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente1, fecha: p.fecha, hora: p.hora });
         if (p.id_arbitro_asistente2) asignacionesTotales.push({ id_arb: p.id_arbitro_asistente2, fecha: p.fecha, hora: p.hora });
     });
 
-    // Agrupar por Árbitro y Fecha
     const mapaArbitros = {};
     for (const asignacion of asignacionesTotales) {
         if (!asignacion.id_arb || !asignacion.fecha || !asignacion.hora) continue;
@@ -389,7 +384,6 @@ const validarArbitros = () => {
         mapaArbitros[clave].push(horaDate);
     }
 
-    // Aplicar Reglas
     for (const clave in mapaArbitros) {
         const horarios = mapaArbitros[clave];
         const [idArbitro, fecha] = clave.split('_');
@@ -425,7 +419,6 @@ const guardarCalendario = async () => {
             return alert(`Falta ingresar fecha, hora o completar la terna arbitral en el partido de ${p.local_nombre} vs ${p.visitante_nombre}`);
         }
         
-        // Validación para evitar que la misma persona tenga 2 o más roles en el mismo partido
         if (p.id_arbitro_principal === p.id_arbitro_asistente1 || 
             p.id_arbitro_principal === p.id_arbitro_asistente2 || 
             p.id_arbitro_asistente1 === p.id_arbitro_asistente2) {
@@ -457,24 +450,14 @@ const guardarCalendario = async () => {
     }
 }
 
-const abrirModalResultado = (partido) => {
-    partidoParaEditar.value = partido
-    mostrarModalResultado.value = true
-}
 const abrirModalResumen = (partido) => {
     partidoParaResumen.value = partido
     mostrarModalResumen.value = true
 }
-const cerrarModalYRecargar = async () => {
-    mostrarModalResultado.value = false
-    partidoParaEditar.value = null
-    if (torneoSeleccionado.value) {
-        partidosOficiales.value = await obtenerPartidosPorTorneo(torneoSeleccionado.value.id_torneo)
-        equiposInscritos.value = await obtenerEquiposInscritosService(torneoSeleccionado.value.id_torneo)
-    }
-}
+
 onMounted(cargarTorneos)
 </script>
+
 <style scoped>
 .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

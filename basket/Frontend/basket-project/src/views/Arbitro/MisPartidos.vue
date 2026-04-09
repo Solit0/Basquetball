@@ -5,7 +5,7 @@
                 <div class="flex items-center space-x-2 text-sm font-bold text-amber-600 mb-1">
                     <span @click="volverATorneos" class="cursor-pointer hover:underline">Mis Asignaciones</span>
                     <span v-if="viewMode === 'partidos' || viewMode === 'detalle'" class="text-gray-500">/ {{ torneoSeleccionado?.nombre_torneo }}</span>
-                    <span v-if="viewMode === 'detalle'" class="text-gray-500">/ Partido #{{ partidoSeleccionado?.id_partido }}</span>
+                    <span v-if="viewMode === 'detalle'" class="text-gray-500">/ Partido #{{ partidoSeleccionado?.id_partido.slice(-5) }}</span>
                 </div>
                 <h2 class="text-3xl font-black text-gray-900 flex items-center">
                     <button v-if="viewMode !== 'torneos'" @click="volverAtras" class="mr-3 text-amber-500 hover:text-amber-700 transition-colors" title="Regresar">
@@ -17,6 +17,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto pb-10">
+            
             <div v-if="viewMode === 'torneos'" class="animate-fade-in">
                 <div v-if="torneos.length === 0" class="py-16 text-center text-gray-500 bg-white rounded-xl border-2 border-dashed border-gray-300 shadow-sm">
                     <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -35,7 +36,7 @@
                             {{ t.categoria }} | {{ t.clasificacion }}
                         </p>
                         <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                            <span class="text-sm font-medium text-gray-600">Partidos por pitar:</span>
+                            <span class="text-sm font-medium text-gray-600">Partidos asignados:</span>
                             <span class="px-3 py-1 bg-amber-100 text-amber-800 font-black rounded-full shadow-sm text-sm">
                                 {{ t.partidos_pendientes }} pendientes
                             </span>
@@ -61,6 +62,11 @@
                             <span class="text-xs font-black text-amber-600 uppercase tracking-wider">{{ p.ronda_torneo }}</span>
                             
                             <div class="flex items-center gap-3">
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded shadow-sm border uppercase"
+                                      :class="p.rol_arbitral === 'Principal' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-gray-100 text-gray-600 border-gray-200'">
+                                    {{ p.rol_arbitral }}
+                                </span>
+
                                 <span v-if="p.estado === 'En Juego'" class="text-[10px] font-black bg-amber-500 text-white px-2 py-0.5 rounded shadow-sm flex items-center">
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     LISTA CONFIRMADA
@@ -96,8 +102,16 @@
 
             <div v-else-if="viewMode === 'detalle'" class="animate-fade-in max-w-5xl mx-auto">
                 <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-6">
+                    
                     <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white">
-                        <span class="font-bold text-amber-500 uppercase tracking-widest text-sm">{{ partidoDetalle?.ronda_torneo }}</span>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-amber-500 uppercase tracking-widest text-sm">{{ partidoDetalle?.ronda_torneo }}</span>
+                            <span class="text-xs text-gray-400 mt-1">Tu asignación: 
+                                <strong :class="partidoDetalle?.rol_arbitral === 'Principal' ? 'text-indigo-400' : 'text-gray-300'">
+                                    {{ partidoDetalle?.rol_arbitral }}
+                                </strong>
+                            </span>
+                        </div>
                         <span :class="partidoDetalle?.estado === 'En Juego' ? 'bg-green-500 text-white' : 'bg-amber-500 text-slate-900'" 
                                 class="px-3 py-1 rounded-full text-xs font-black tracking-wider shadow-sm transition-colors duration-300">
                             ESTADO: {{ partidoDetalle?.estado ? partidoDetalle.estado.toUpperCase() : 'PROGRAMADO' }}
@@ -122,6 +136,7 @@
                                 <p class="text-xs font-bold text-gray-500 uppercase mt-1">Equipo Visitante</p>
                             </div>
                         </div>
+                        
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
                             <div class="flex items-center text-gray-700">
                                 <svg class="w-6 h-6 mr-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -143,29 +158,15 @@
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-                    <h4 class="text-sm font-black text-gray-800 uppercase tracking-widest border-b pb-2 mb-4">Cuerpos Técnicos</h4>
-                    <div class="grid grid-cols-2 gap-8">
-                        <div>
-                            <p class="text-xs text-amber-600 font-bold uppercase">{{ partidoDetalle?.local_nombre }}</p>
-                            <p class="font-medium text-gray-900 mt-1 flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
-                                {{ partidoDetalle?.local_entrenador_nombre ? partidoDetalle.local_entrenador_nombre + ' ' + partidoDetalle.local_entrenador_apellido : 'Entrenador no registrado' }}
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500 font-bold uppercase">{{ partidoDetalle?.visitante_nombre }}</p>
-                            <p class="font-medium text-gray-900 mt-1 flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
-                                {{ partidoDetalle?.visitante_entrenador_nombre ? partidoDetalle.visitante_entrenador_nombre + ' ' + partidoDetalle.visitante_entrenador_apellido : 'Entrenador no registrado' }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
                     <div class="flex justify-between items-center border-b pb-2 mb-4">
-                        <h4 class="text-sm font-black text-gray-800 uppercase tracking-widest">Alineaciones Oficiales</h4>
-                        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold">P = Presente | A = Ausente | I = Inhabilitado</span>
+                        <h4 class="text-sm font-black text-gray-800 uppercase tracking-widest">Rosters Oficiales</h4>
+                        <span v-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" 
+                              class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold">
+                            P = Presente | A = Ausente | I = Inhabilitado
+                        </span>
+                        <span v-else class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold border border-indigo-100">
+                            Modo Solo Lectura (Acta Cerrada)
+                        </span>
                     </div>
                     
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -174,13 +175,16 @@
                                 <span>{{ partidoDetalle?.local_nombre }} (L)</span>
                                 <span class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">{{ jugadoresLocal.length }} Jugadores</span>
                             </h5>
+                            
                             <div v-if="jugadoresLocal.length === 0" class="text-sm text-gray-500 italic py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
                                 Alineación no registrada aún.
                             </div>
+                            
                             <ul v-else class="space-y-2 pr-2">
                                 <li v-for="j in jugadoresLocal" :key="j.id_jugador" 
                                     class="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white p-3 rounded-lg border border-gray-200 shadow-sm transition-colors"
                                     :class="{'border-l-4 border-l-green-500': j.estado_asistencia === 'Presente', 'border-l-4 border-l-red-500': j.estado_asistencia === 'Inhabilitado'}">
+                                    
                                     <div class="flex items-center mb-2 sm:mb-0">
                                         <span class="w-7 h-7 flex items-center justify-center font-black text-amber-700 bg-amber-100 rounded-full text-xs mr-3 shrink-0">
                                             {{ j.numero_camiseta || '-' }}
@@ -188,11 +192,10 @@
                                         <span class="font-medium text-gray-900 truncate" :class="{'line-through text-gray-400': j.estado_asistencia === 'Inhabilitado'}">
                                             {{ j.nombre }} {{ j.apellido }}
                                         </span>
-                                        <span v-if="j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán'" 
-                                                class="ml-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" 
-                                                title="Capitán">©</span>
+                                        <span v-if="j.es_capitan" class="ml-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" title="Capitán">©</span>
                                     </div>
-                                    <div class="flex bg-gray-100 p-1 rounded-md shrink-0">
+
+                                    <div v-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" class="flex bg-gray-100 p-1 rounded-md shrink-0">
                                         <button @click="cambiarAsistencia(j, 'Presente')" :disabled="cargandoAsistencia"
                                                 :class="j.estado_asistencia === 'Presente' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'"
                                                 class="px-3 py-1 text-xs font-bold rounded transition-colors w-10">P</button>
@@ -202,6 +205,12 @@
                                         <button @click="cambiarAsistencia(j, 'Inhabilitado')" :disabled="cargandoAsistencia"
                                                 :class="j.estado_asistencia === 'Inhabilitado' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'"
                                                 class="px-3 py-1 text-xs font-bold rounded transition-colors w-10" title="Sancionado/Inhabilitado">I</button>
+                                    </div>
+                                    <div v-else class="flex shrink-0">
+                                        <span v-if="j.estado_asistencia === 'Presente'" class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold border border-green-200">Presente</span>
+                                        <span v-else-if="j.estado_asistencia === 'Ausente'" class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold border border-gray-200">Ausente</span>
+                                        <span v-else-if="j.estado_asistencia === 'Inhabilitado'" class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold border border-red-200">Inhabilitado</span>
+                                        <span v-else class="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold border border-amber-200">Pendiente</span>
                                     </div>
                                 </li>
                             </ul>
@@ -212,13 +221,16 @@
                                 <span>{{ partidoDetalle?.visitante_nombre }} (V)</span>
                                 <span class="bg-gray-300 text-gray-800 px-2 py-0.5 rounded-full">{{ jugadoresVisitante.length }} Jugadores</span>
                             </h5>
+                            
                             <div v-if="jugadoresVisitante.length === 0" class="text-sm text-gray-500 italic py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
                                 Alineación no registrada aún.
                             </div>
+                            
                             <ul v-else class="space-y-2 pr-2">
                                 <li v-for="j in jugadoresVisitante" :key="j.id_jugador" 
                                     class="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white p-3 rounded-lg border border-gray-200 shadow-sm transition-colors"
                                     :class="{'border-l-4 border-l-green-500': j.estado_asistencia === 'Presente', 'border-l-4 border-l-red-500': j.estado_asistencia === 'Inhabilitado'}">
+                                    
                                     <div class="flex items-center mb-2 sm:mb-0">
                                         <span class="w-7 h-7 flex items-center justify-center font-black text-gray-600 bg-gray-200 rounded-full text-xs mr-3 shrink-0">
                                             {{ j.numero_camiseta || '-' }}
@@ -226,11 +238,10 @@
                                         <span class="font-medium text-gray-900 truncate" :class="{'line-through text-gray-400': j.estado_asistencia === 'Inhabilitado'}">
                                             {{ j.nombre }} {{ j.apellido }}
                                         </span>
-                                        <span v-if="j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán'" 
-                                                class="ml-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" 
-                                                title="Capitán">©</span>
+                                        <span v-if="j.es_capitan" class="ml-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" title="Capitán">©</span>
                                     </div>
-                                    <div class="flex bg-gray-100 p-1 rounded-md shrink-0">
+
+                                    <div v-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" class="flex bg-gray-100 p-1 rounded-md shrink-0">
                                         <button @click="cambiarAsistencia(j, 'Presente')" :disabled="cargandoAsistencia"
                                                 :class="j.estado_asistencia === 'Presente' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'"
                                                 class="px-3 py-1 text-xs font-bold rounded transition-colors w-10">P</button>
@@ -241,6 +252,12 @@
                                                 :class="j.estado_asistencia === 'Inhabilitado' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'"
                                                 class="px-3 py-1 text-xs font-bold rounded transition-colors w-10" title="Sancionado/Inhabilitado">I</button>
                                     </div>
+                                    <div v-else class="flex shrink-0">
+                                        <span v-if="j.estado_asistencia === 'Presente'" class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold border border-green-200">Presente</span>
+                                        <span v-else-if="j.estado_asistencia === 'Ausente'" class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold border border-gray-200">Ausente</span>
+                                        <span v-else-if="j.estado_asistencia === 'Inhabilitado'" class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold border border-red-200">Inhabilitado</span>
+                                        <span v-else class="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold border border-amber-200">Pendiente</span>
+                                    </div>
                                 </li>
                             </ul>
                         </div>
@@ -249,28 +266,75 @@
 
                 <div v-if="partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" 
                         class="mt-8 text-center bg-white p-8 rounded-2xl border-2 border-dashed border-gray-300 shadow-sm">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <h4 class="text-xl font-black text-gray-800 mb-2">¿Todo listo para el salto inicial?</h4>
-                    <p class="text-sm text-gray-500 mb-6 max-w-md mx-auto">Asegúrate de haber marcado la asistencia de los jugadores oficiales. Al iniciar el partido, se habilitará la opción para que el Administrador registre el marcador final.</p>
                     
-                    <button @click="marcarListoParaJugar" :disabled="procesandoInicio" 
-                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-full shadow-lg transition-all transform hover:scale-105 flex items-center justify-center mx-auto w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                        <svg v-if="procesandoInicio" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <svg v-else class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        {{ procesandoInicio ? 'INICIANDO...' : 'LISTO PARA JUGAR' }}
+                    <template v-if="partidoDetalle?.rol_arbitral === 'Principal'">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h4 class="text-xl font-black text-gray-800 mb-2">¿Todo listo para el salto inicial?</h4>
+                        <p class="text-sm text-gray-500 mb-6 max-w-md mx-auto">Como Árbitro Principal, asegúrate de haber marcado la asistencia de todos los jugadores. Al iniciar el partido, el acta digital quedará habilitada.</p>
+                        
+                        <button @click="marcarListoParaJugar" :disabled="procesandoInicio" 
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-full shadow-lg transition-all transform hover:scale-105 flex items-center justify-center mx-auto w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg v-if="procesandoInicio" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <svg v-else class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            {{ procesandoInicio ? 'INICIANDO...' : 'LISTO PARA JUGAR' }}
+                        </button>
+                    </template>
+                    
+                    <template v-else>
+                        <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-400">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </div>
+                        <h4 class="text-xl font-black text-gray-800 mb-2">Modo de Solo Lectura</h4>
+                        <p class="text-sm text-gray-500 max-w-md mx-auto">
+                            Has sido convocado como <strong>{{ partidoDetalle?.rol_arbitral }}</strong> para este encuentro. El Árbitro Principal es el único con autorización en el sistema para pasar asistencia e iniciar el partido.
+                        </p>
+                    </template>
+                </div>
+                
+                <div v-else-if="partidoDetalle?.estado === 'En Juego' && partidoDetalle?.rol_arbitral === 'Principal'" 
+                        class="mt-8 text-center bg-white p-8 rounded-2xl border border-amber-200 shadow-sm">
+                    <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-500">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </div>
+                    <h4 class="text-xl font-black text-gray-800 mb-2">Partido en Progreso</h4>
+                    <p class="text-sm text-gray-500 mb-6 max-w-md mx-auto">El cronómetro está corriendo. Al escuchar el silbatazo final, presiona el botón para concluir el encuentro y llenar el acta oficial.</p>
+                    
+                    <button @click="prepararFinalizacion" 
+                            class="bg-red-500 hover:bg-red-600 text-white font-black py-4 px-10 rounded-full shadow-lg transition-all transform hover:scale-105 flex items-center justify-center mx-auto w-full sm:w-auto">
+                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
+                        FINALIZAR PARTIDO
                     </button>
+                </div>
+
+                <div v-else-if="partidoDetalle?.estado === 'En Juego' && partidoDetalle?.rol_arbitral !== 'Principal'" 
+                        class="mt-8 text-center bg-white p-8 rounded-2xl border border-amber-200 shadow-sm">
+                    <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-500">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h4 class="text-xl font-black text-gray-800 mb-2">Partido en Progreso</h4>
+                    <p class="text-sm text-gray-500 max-w-md mx-auto">
+                        El Árbitro Principal ha iniciado el partido. Al concluir, él será el encargado de redactar y enviar el acta oficial.
+                    </p>
                 </div>
             </div>
         </div>
+
+        <ModalResultadoPartido 
+            v-if="mostrarModalResultado" 
+            :partido="partidoDetalle" 
+            :idTorneo="torneoSeleccionado.id_torneo" 
+            @close="cerrarModalYRecargar" 
+        />
     </div>
 </template>
 
 <script setup>
+import ModalResultadoPartido from '../modals/ModalResultadoPartido.vue'
 import { ref, onMounted, computed } from 'vue'
 import { 
     obtenerTorneosAsignadosService, 
@@ -280,7 +344,7 @@ import {
     marcarAsistenciaJugadorService,
     iniciarPartidoService
 } from '../../services/arbitrosService.js' 
-
+const mostrarModalResultado = ref(false)
 const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || '{}')
 const idArbitroActual = ref(usuarioGuardado.id_usuario || 1)
 const procesandoInicio = ref(false)
@@ -302,11 +366,36 @@ const tituloVista = computed(() => {
     if (viewMode.value === 'partidos') return `Partidos Programados`
     if (viewMode.value === 'detalle') return 'Ficha Técnica'
 })
-
+const abrirModalResultado = () => {
+    
+    if (partidoDetalle.value?.rol_arbitral !== 'Principal') {
+        alert("Solo el Árbitro Principal puede llenar el acta final del encuentro.");
+        return;
+    }
+    mostrarModalResultado.value = true
+}
 onMounted(() => {
     cargarTorneos()
 })
-
+const cerrarModalYRecargar = async (guardadoExitoso = false) => {
+    mostrarModalResultado.value = false;
+    
+    if (guardadoExitoso) {
+        // Si el modal emitió un 'true', recargamos los datos reales desde la BD
+        try {
+            const detalleActualizado = await obtenerDetallePartidoService(idArbitroActual.value, partidoDetalle.value.id_partido);
+            partidoDetalle.value = detalleActualizado;
+            partidos.value = await obtenerPartidosPorTorneoService(idArbitroActual.value, torneoSeleccionado.value.id_torneo);
+        } catch (error) {
+            console.error("Error recargando la vista tras finalizar partido", error);
+        }
+    } else {
+        // Si el árbitro cerró el modal sin guardar (Cancelar), revertimos el estado a "En Juego"
+        partidoDetalle.value.estado = 'En Juego';
+        const idx = partidos.value.findIndex(p => p.id_partido === partidoDetalle.value.id_partido);
+        if(idx !== -1) partidos.value[idx].estado = 'En Juego';
+    }
+}
 const cargarTorneos = async () => {
     try {
         if (idArbitroActual.value) {
@@ -326,6 +415,19 @@ const seleccionarTorneo = async (torneo) => {
         console.error("Error cargando partidos", error)
     }
 }
+const prepararFinalizacion = () => {
+    if (partidoDetalle.value?.rol_arbitral !== 'Principal') return;
+
+    if (!confirm('¿Estás seguro de pitar el final del partido? Se abrirá el acta oficial para registrar los resultados definitivos.')) return;
+
+    // Cambiamos el estado localmente para la UI
+    partidoDetalle.value.estado = 'Finalizado';
+    const idx = partidos.value.findIndex(p => p.id_partido === partidoDetalle.value.id_partido);
+    if(idx !== -1) partidos.value[idx].estado = 'Finalizado';
+
+    // Abrimos el modal automáticamente
+    mostrarModalResultado.value = true;
+}
 
 const seleccionarPartido = async (partido) => {
     partidoSeleccionado.value = partido
@@ -341,6 +443,9 @@ const seleccionarPartido = async (partido) => {
 }
 
 const cambiarAsistencia = async (jugador, nuevoEstado) => {
+    // Seguridad extra en el script: Si no es el Principal, no hacemos nada
+    if (partidoDetalle.value?.rol_arbitral !== 'Principal') return;
+
     if (jugador.estado_asistencia === nuevoEstado) return; 
     cargandoAsistencia.value = true;
     const estadoAnterior = jugador.estado_asistencia; 
@@ -357,6 +462,9 @@ const cambiarAsistencia = async (jugador, nuevoEstado) => {
 }
 
 const marcarListoParaJugar = async () => {
+    // Seguridad extra en el script
+    if (partidoDetalle.value?.rol_arbitral !== 'Principal') return;
+
     const faltanLocal = jugadoresLocal.value.some(j => j.estado_asistencia === 'Pendiente');
     const faltanVisitante = jugadoresVisitante.value.some(j => j.estado_asistencia === 'Pendiente');
 
@@ -369,8 +477,8 @@ const marcarListoParaJugar = async () => {
     if (presentesLocal.length < 5) return alert(`EQUIPO INCOMPLETO:\n\nEl equipo Local solo tiene ${presentesLocal.length} jugador(es) presente(s).`);
     if (presentesVisitante.length < 5) return alert(`EQUIPO INCOMPLETO:\n\nEl equipo Visitante solo tiene ${presentesVisitante.length} jugador(es) presente(s).`);
 
-    const capitanLocal = presentesLocal.some(j => j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán');
-    const capitanVisitante = presentesVisitante.some(j => j.es_capitan === true || j.es_capitan === 'true' || j.rol === 'Capitán');
+    const capitanLocal = presentesLocal.some(j => j.es_capitan);
+    const capitanVisitante = presentesVisitante.some(j => j.es_capitan);
 
     if (!capitanLocal || !capitanVisitante) return alert(`CAPITÁN AUSENTE:\n\nAmbos equipos deben tener a su capitán en cancha (marcado como "Presente").`);
     
@@ -381,7 +489,6 @@ const marcarListoParaJugar = async () => {
         await iniciarPartidoService(partidoDetalle.value.id_partido);
         partidoDetalle.value.estado = 'En Juego'; 
         
-        // Actualizar el estado en el array local de partidos para que se refleje la etiqueta de "Lista Confirmada"
         const idx = partidos.value.findIndex(p => p.id_partido === partidoDetalle.value.id_partido);
         if(idx !== -1) partidos.value[idx].estado = 'En Juego';
 

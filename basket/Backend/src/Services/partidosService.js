@@ -1,4 +1,3 @@
-//ruta src/Services/partidosService.js
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
 const { eq, and, or, desc, asc, sql, inArray, ne } = require('drizzle-orm');
@@ -173,17 +172,20 @@ const obtenerPorTorneo = async (id_torneo) => {
 };
 
 const obtenerResumenPartido = async (id_partido) => {
+    const pInfo = await db.select({ id_torneo: schema.partidos.idTorneo }).from(schema.partidos).where(eq(schema.partidos.idPartido, id_partido)).limit(1);
+    const idTorneo = pInfo[0]?.id_torneo;
 
     const resPuntos = await db.select({
         puntos_anotados: schema.estadisticasPartido.puntosAnotados,
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
-        id_equipo: schema.plantillaEquipo.idEquipo,
-        numero_camiseta: schema.plantillaEquipo.numeroCamiseta
+        id_equipo: schema.inscripciones.idEquipo,
+        numero_camiseta: schema.rosterTorneo.numeroCamiseta
     })
     .from(schema.estadisticasPartido)
     .innerJoin(schema.jugadores, eq(schema.estadisticasPartido.idJugador, schema.jugadores.idJugador))
-    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+    .innerJoin(schema.rosterTorneo, eq(schema.jugadores.idJugador, schema.rosterTorneo.idJugador))
+    .innerJoin(schema.inscripciones, and(eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion), eq(schema.inscripciones.idTorneo, idTorneo)))
     .where(eq(schema.estadisticasPartido.idPartido, id_partido))
     .orderBy(desc(schema.estadisticasPartido.puntosAnotados));
 
@@ -193,12 +195,13 @@ const obtenerResumenPartido = async (id_partido) => {
         fecha_fin: schema.sanciones.fechaFin,
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
-        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-        id_equipo: schema.plantillaEquipo.idEquipo
+        numero_camiseta: schema.rosterTorneo.numeroCamiseta,
+        id_equipo: schema.inscripciones.idEquipo
     })
     .from(schema.sanciones)
     .innerJoin(schema.jugadores, eq(schema.sanciones.idJugador, schema.jugadores.idJugador))
-    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+    .innerJoin(schema.rosterTorneo, eq(schema.jugadores.idJugador, schema.rosterTorneo.idJugador))
+    .innerJoin(schema.inscripciones, and(eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion), eq(schema.inscripciones.idTorneo, idTorneo)))
     .where(eq(schema.sanciones.idPartido, id_partido));
 
     const resInforme = await db.select({ contenido: schema.informesPartido.contenido })
@@ -220,78 +223,110 @@ const finalizarPartido = async (id_partido, datosResultado) => {
         id_torneo, id_equipo_local, id_equipo_visitante
     } = datosResultado;
 
-    return await db.transaction(async (tx) => {
+    try {
+        return await db.transaction(async (tx) => {
 
-        await tx.update(schema.partidos)
-            .set({
-                marcadorLocal: marcador_local,
-                marcadorVisitante: marcador_visitante,
-                idArbitroPrincipal: id_arbitro,
-                estado: 'Finalizado'
-            })
-            .where(eq(schema.partidos.idPartido, id_partido));
+            await tx.update(schema.partidos)
+                .set({
+                    marcadorLocal: marcador_local,
+                    marcadorVisitante: marcador_visitante,
+                    idArbitroPrincipal: id_arbitro,
+                    estado: 'Finalizado'
+                })
+                .where(eq(schema.partidos.idPartido, id_partido));
 
-        const id_perdedor = marcador_local < marcador_visitante ? id_equipo_local : id_equipo_visitante;
-        await tx.update(schema.inscripciones)
-            .set({ estadoInscripcion: 'Eliminado' })
-            .where(
-                and(
-                    eq(schema.inscripciones.idTorneo, id_torneo),
-                    eq(schema.inscripciones.idEquipo, id_perdedor)
-                )
-            );
+            const id_perdedor = marcador_local < marcador_visitante ? id_equipo_local : id_equipo_visitante;
+            await tx.update(schema.inscripciones)
+                .set({ estadoInscripcion: 'Eliminado' })
+                .where(
+                    and(
+                        eq(schema.inscripciones.idTorneo, id_torneo),
+                        eq(schema.inscripciones.idEquipo, id_perdedor)
+                    )
+                );
 
-        const [nuevoInforme] = await tx.insert(schema.informesPartido)
-            .values({
-                idPartido: id_partido,
-                idArbitro: id_arbitro,
-                contenido: informe_contenido,
-                enviado: true
-            })
-            .returning({ id_informe: schema.informesPartido.idInforme });
-            
-        const id_informe = nuevoInforme.id_informe;
-
-        if (incidentes && incidentes.length > 0) {
-            const incidentesData = incidentes.map(inc => ({
-                idInforme: id_informe,
-                tipoIncidente: inc.tipo_incidente,
-                minutoAprox: inc.minuto_aprox,
-                descripcionBreve: inc.descripcion_breve
-            }));
-            await tx.insert(schema.incidentes).values(incidentesData);
-        }
-
-        // 5. Registrar Sanciones (Bulk Insert)
-        if (sanciones && sanciones.length > 0) {
-            const sancionesData = sanciones.map(san => ({
-                idJugador: san.id_jugador,
-                idTorneo: id_torneo,
-                idPartido: id_partido,
-                motivo: san.motivo,
-                fechaInicio: san.fecha_inicio,
-                fechaFin: san.fecha_fin,
-                tipoSancion: san.tipo_sancion
-            }));
-            await tx.insert(schema.sanciones).values(sancionesData);
-        }
-
-        if (puntos_jugadores && puntos_jugadores.length > 0) {
-            const puntosData = puntos_jugadores
-                .filter(pj => pj.puntos > 0)
-                .map(pj => ({
+            const [nuevoInforme] = await tx.insert(schema.informesPartido)
+                .values({
                     idPartido: id_partido,
-                    idJugador: pj.id_jugador,
-                    puntosAnotados: pj.puntos
-                }));
-            
-            if (puntosData.length > 0) {
-                await tx.insert(schema.estadisticasPartido).values(puntosData);
-            }
-        }
+                    idArbitro: id_arbitro,
+                    contenido: informe_contenido,
+                    enviado: true
+                })
+                .returning({ id_informe: schema.informesPartido.idInforme });
+                
+            const id_informe = nuevoInforme.id_informe;
 
-        return { mensaje: 'Partido finalizado, informe guardado y perdedor eliminado.' };
-    });
+            if (incidentes && incidentes.length > 0) {
+                const incidentesData = incidentes.map(inc => ({
+                    idInforme: id_informe,
+                    tipoIncidente: inc.tipo_incidente,
+                    minutoAprox: inc.minuto_aprox,
+                    descripcionBreve: inc.descripcion_breve
+                }));
+                await tx.insert(schema.incidentes).values(incidentesData);
+            }
+
+            if (sanciones && sanciones.length > 0) {
+                const sancionesData = sanciones.map(san => ({
+                    idJugador: san.id_jugador,
+                    idTorneo: id_torneo,
+                    idPartido: id_partido,
+                    motivo: san.motivo,
+                    fechaInicio: san.fecha_inicio,
+                    fechaFin: san.fecha_fin,
+                    tipoSancion: san.tipo_sancion
+                }));
+                await tx.insert(schema.sanciones).values(sancionesData);
+            }
+
+            if (puntos_jugadores && puntos_jugadores.length > 0) {
+
+                const rosters = await tx.select({
+                    id_jugador: schema.rosterTorneo.idJugador,
+                    id_roster: schema.rosterTorneo.idRoster
+                })
+                .from(schema.rosterTorneo)
+                .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
+                .where(eq(schema.inscripciones.idTorneo, id_torneo));
+                const mapaRosters = {};
+                rosters.forEach(r => {
+                    mapaRosters[r.id_jugador] = r.id_roster;
+                });
+                const puntosData = puntos_jugadores
+                    .filter(pj => pj.puntos > 0)
+                    .map(pj => {
+                        const rosterCorrecto = mapaRosters[pj.id_jugador];
+                        if (!rosterCorrecto) {
+                            throw new Error(`El jugador ${pj.id_jugador} que anotó puntos no pertenece al roster de este torneo.`);
+                        }
+                        
+                        return {
+                            idPartido: id_partido,
+                            idRoster: rosterCorrecto, 
+                            puntosAnotados: pj.puntos
+                        };
+                    });
+                
+                if (puntosData.length > 0) {
+                    await tx.insert(schema.estadisticasPartido).values(puntosData);
+                }
+            }
+
+            return { mensaje: 'Partido finalizado, informe guardado y perdedor eliminado.' };
+        });
+    } catch (error) {
+    
+    
+        console.error("Mensaje principal:", error.message);
+        if (error.cause) {
+            console.error("Causa (PostgresError):", error.cause.message);
+            console.error("Detalle:", error.cause.detail);
+            console.error("Código DB:", error.cause.code);
+            console.error("Tabla afectada:", error.cause.table);
+            console.error("Columna afectada:", error.cause.column);
+        }
+        throw error;
+    }
 };
 
 const obtenerHistorialEquipo = async (id_entrenador) => {
@@ -316,18 +351,18 @@ const obtenerHistorialEquipo = async (id_entrenador) => {
         puntuacion: schema.evaluacionesArbitro.puntuacion,
         comentarios: schema.evaluacionesArbitro.comentarios,
         respuesta_arbitro: schema.evaluacionesArbitro.respuestaArbitro,
-        
         sanciones_partido: sql`(
             SELECT COALESCE(json_agg(json_build_object(
                 'tipo_sancion', s.tipo_sancion,
                 'motivo', s.motivo,
                 'nombre_jugador', j.nombre,
                 'apellido_jugador', j.apellido,
-                'id_equipo', pe.id_equipo
+                'id_equipo', i.id_equipo
             )), '[]'::json)
             FROM sanciones s
             JOIN jugadores j ON s.id_jugador = j.id_jugador
-            JOIN plantilla_equipo pe ON j.id_jugador = pe.id_jugador AND pe.activo = true
+            JOIN roster_torneo rt ON j.id_jugador = rt.id_jugador
+            JOIN inscripciones i ON rt.id_inscripcion = i.id_inscripcion AND i.id_torneo = ${schema.partidos.idTorneo}
             WHERE s.id_partido = ${schema.partidos.idPartido}
         )`.as('sanciones_partido')
     })
@@ -375,6 +410,7 @@ const obtenerPartidosPublicos = async () => {
 
     const rows = await db.select({
         id_partido: schema.partidos.idPartido,
+        id_torneo: schema.partidos.idTorneo, 
         fecha: schema.partidos.fecha,
         hora: schema.partidos.hora,
         estado: schema.partidos.estado,
@@ -406,6 +442,7 @@ const obtenerPartidosPublicos = async () => {
 const obtenerFichaTecnicaPublica = async (id_partido) => {
     
     const partidoInfo = await db.select({
+        id_torneo: schema.partidos.idTorneo, 
         id_equipo_local: schema.partidos.idEquipoLocal,
         id_equipo_visitante: schema.partidos.idEquipoVisitante
     })
@@ -414,40 +451,42 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
     .limit(1);
     
     if (partidoInfo.length === 0) throw new Error("Partido no encontrado");
-    const { id_equipo_local, id_equipo_visitante } = partidoInfo[0];
+    const { id_torneo, id_equipo_local, id_equipo_visitante } = partidoInfo[0];
 
+    // 🔴 MIGRADO AL NUEVO ROSTER
     const getAlineacion = async (idEquipo) => {
         return await db.select({
-            id_jugador: schema.plantillaEquipo.idJugador,
+            id_jugador: schema.rosterTorneo.idJugador,
             estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Ausente')`.as('estado_asistencia'),
             puntos_anotados: sql`COALESCE(${schema.estadisticasPartido.puntosAnotados}, 0)`.as('puntos_anotados'),
-            rol_partido: sql`COALESCE(${schema.alineaciones.rolPartido}, ${schema.plantillaEquipo.rolEquipo}, 'Suplente')`.as('rol_partido'),
+            rol_partido: sql`COALESCE(${schema.alineaciones.rolPartido}, ${schema.rosterTorneo.rolRoster}, 'Suplente')`.as('rol_partido'),
             nombre: schema.jugadores.nombre,
             apellido: schema.jugadores.apellido,
-            numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-            es_capitan: schema.plantillaEquipo.esCapitan
+            numero_camiseta: schema.rosterTorneo.numeroCamiseta,
+            es_capitan: schema.rosterTorneo.esCapitan
         })
-        .from(schema.plantillaEquipo)
-        .innerJoin(schema.jugadores, eq(schema.plantillaEquipo.idJugador, schema.jugadores.idJugador))
+        .from(schema.rosterTorneo)
+        .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
+        .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
         .leftJoin(schema.asistenciaPartidos, and(
-            eq(schema.plantillaEquipo.idJugador, schema.asistenciaPartidos.idJugador),
+            eq(schema.rosterTorneo.idJugador, schema.asistenciaPartidos.idJugador),
             eq(schema.asistenciaPartidos.idPartido, id_partido)
         ))
         .leftJoin(schema.estadisticasPartido, and(
-            eq(schema.plantillaEquipo.idJugador, schema.estadisticasPartido.idJugador),
+            eq(schema.rosterTorneo.idJugador, schema.estadisticasPartido.idJugador),
             eq(schema.estadisticasPartido.idPartido, id_partido)
         ))
         .leftJoin(schema.alineaciones, and(
-            eq(schema.plantillaEquipo.idJugador, schema.alineaciones.idJugador),
+            eq(schema.rosterTorneo.idJugador, schema.alineaciones.idJugador),
             eq(schema.alineaciones.idPartido, id_partido)
         ))
         .where(
             and(
-                eq(schema.plantillaEquipo.idEquipo, idEquipo),
-                eq(schema.plantillaEquipo.activo, true)
+                eq(schema.inscripciones.idEquipo, idEquipo),
+                eq(schema.inscripciones.idTorneo, id_torneo)
             )
         )
-        .orderBy(asc(schema.plantillaEquipo.numeroCamiseta));
+        .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
     };
 
     const alineacionLocal = await getAlineacion(id_equipo_local);
@@ -462,11 +501,12 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
     })
     .from(schema.sanciones)
     .innerJoin(schema.jugadores, eq(schema.sanciones.idJugador, schema.jugadores.idJugador))
-    .innerJoin(schema.plantillaEquipo, and(
-        eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador),
-        eq(schema.plantillaEquipo.activo, true)
+    .innerJoin(schema.rosterTorneo, eq(schema.jugadores.idJugador, schema.rosterTorneo.idJugador))
+    .innerJoin(schema.inscripciones, and(
+        eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion),
+        eq(schema.inscripciones.idTorneo, id_torneo)
     ))
-    .innerJoin(schema.equipos, eq(schema.plantillaEquipo.idEquipo, schema.equipos.idEquipo))
+    .innerJoin(schema.equipos, eq(schema.inscripciones.idEquipo, schema.equipos.idEquipo))
     .where(eq(schema.sanciones.idPartido, id_partido));
 
     return {

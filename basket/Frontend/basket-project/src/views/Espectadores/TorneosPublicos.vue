@@ -3,7 +3,7 @@
         
         <NavbarEspectador />
 
-        <main class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 animate-fade-in">
+        <main class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 animate-fade-in relative">
             
             <div class="mb-8 flex items-center justify-between">
                 <div>
@@ -117,12 +117,16 @@
                     
                     <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         <div v-for="equipo in equiposInscritos" :key="equipo.id_equipo" 
-                             class="bg-white border border-gray-200 rounded-xl p-5 text-center hover:shadow-md hover:border-indigo-300 transition-all group">
+                             @click="abrirScouting(equipo)"
+                             class="bg-white border border-gray-200 rounded-xl p-5 text-center hover:shadow-md hover:border-indigo-400 transition-all group cursor-pointer relative">
                             
+                            <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            </div>
+
                             <div class="w-14 h-14 mx-auto bg-gray-100 rounded-full border-4 border-white shadow-sm mb-3 flex items-center justify-center text-gray-400 font-black text-xl group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
                                 {{ equipo.nombre_oficial.substring(0, 2).toUpperCase() }}
                             </div>
-                            
                             <p class="font-bold text-gray-900 text-sm leading-tight group-hover:text-indigo-600 transition-colors" :title="equipo.nombre_oficial">
                                 {{ equipo.nombre_oficial }}
                             </p>
@@ -134,6 +138,49 @@
                 </div>
 
             </div>
+
+            <div v-if="showScoutingModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                    <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                        <div>
+                            <h3 class="font-black tracking-widest uppercase flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                Roster Oficial
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">Equipo: <span class="text-white font-bold">{{ equipoScoutingSeleccionado?.nombre_oficial }}</span></p>
+                        </div>
+                        <button @click="showScoutingModal = false" class="text-slate-400 hover:text-white transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="p-6 overflow-y-auto flex-1 bg-gray-50">
+                        <div v-if="cargandoScouting" class="py-12 text-center text-indigo-500">
+                            <svg class="animate-spin h-8 w-8 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <p class="font-bold text-sm">Cargando jugadores...</p>
+                        </div>
+                        <div v-else-if="rosterScouting.length === 0" class="py-12 text-center text-gray-500 border border-dashed border-gray-300 rounded-xl bg-white">
+                            <p>El equipo aún no ha hecho público su roster.</p>
+                        </div>
+                        <div v-else class="space-y-3">
+                            <div v-for="jugador in rosterScouting" :key="jugador.id_jugador" class="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center shadow-sm">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black mr-4">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-gray-900">{{ jugador.nombre }} {{ jugador.apellido }}</p>
+                                    </div>
+                                </div>
+                                <span v-if="jugador.es_capitan" class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded border border-yellow-200 flex items-center">
+                                    © Capitán
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 </template>
@@ -143,9 +190,9 @@ import { ref, onMounted } from 'vue'
 import NavbarEspectador from '../../components/NavbarEspectador.vue'
 
 import { obtenerTorneosActivosService, obtenerEquiposInscritosService } from '../../services/torneosService'
-
-// IMPORTAMOS EL SERVICIO DE PARTIDOS
 import { obtenerPartidosPorTorneo } from '../../services/partidosService'
+
+import { obtenerRosterPublicoService } from '../../services/inscripcionesService'
 
 const torneos = ref([])
 const torneoSeleccionado = ref(null)
@@ -154,33 +201,31 @@ const equiposInscritos = ref([])
 const cargando = ref(true)
 const cargandoEquipos = ref(false)
 
+const showScoutingModal = ref(false)
+const equipoScoutingSeleccionado = ref(null)
+const rosterScouting = ref([])
+const cargandoScouting = ref(false)
+
 onMounted(async () => {
     try {
         cargando.value = true
-        // 1. Traemos todos los torneos activos
         const data = await obtenerTorneosActivosService()
-        
         const torneosValidos = []
         
-        // 2. Filtramos iterando y buscando si tienen partidos
         for (const torneo of data) {
             const partidosDelTorneo = await obtenerPartidosPorTorneo(torneo.id_torneo)
-            // Solo lo agregamos si tiene al menos 1 partido generado
             if (partidosDelTorneo && partidosDelTorneo.length > 0) {
                 torneosValidos.push(torneo)
             }
         }
         
-        // 3. Asignamos los torneos filtrados a la variable final
         torneos.value = torneosValidos
-
     } catch (error) {
         console.error("Error al cargar torneos:", error)
     } finally {
         cargando.value = false
     }
 })
-
 const seleccionarTorneo = async (torneo) => {
     torneoSeleccionado.value = torneo
     try {
@@ -190,6 +235,21 @@ const seleccionarTorneo = async (torneo) => {
         console.error("Error al cargar equipos:", error)
     } finally {
         cargandoEquipos.value = false
+    }
+}
+const abrirScouting = async (equipo) => {
+    equipoScoutingSeleccionado.value = equipo;
+    showScoutingModal.value = true;
+    cargandoScouting.value = true;
+    rosterScouting.value = [];
+
+    try {
+        const data = await obtenerRosterPublicoService(torneoSeleccionado.value.id_torneo, equipo.id_equipo);
+        rosterScouting.value = data || [];
+    } catch (error) {
+        console.error("Error obteniendo roster del equipo:", error);
+    } finally {
+        cargandoScouting.value = false;
     }
 }
 

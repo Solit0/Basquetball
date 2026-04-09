@@ -52,9 +52,9 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Género / Clasificación *</label>
                             <select v-model="form.id_clasificacion" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
                                 <option value="" disabled>Seleccionar género...</option>
-                                <option value="Varonil">Varonil</option>
-                                <option value="Femenil">Femenil</option>
-                                <option value="Mixto">Mixto</option>
+                                <option value="varonil">Varonil</option>
+                                <option value="femenil">Femenil</option>
+                                <option value="mixto">Mixto</option>
                             </select>
                         </div>
 

@@ -16,7 +16,7 @@
           <svg class="h-5 w-5 mr-2 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          {{ isEditing ? 'Editar Jugador' : 'Fichar Jugador' }}
+          {{ isEditing ? 'Editar Jugador' : 'Fichar Jugador al Club' }}
         </h3>
 
         <div v-if="!isEditing" class="flex p-1 bg-gray-100 rounded-lg mb-6">
@@ -87,28 +87,9 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none transition-colors">
             </div>
 
-            <hr class="border-gray-200 my-4" />
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-bold text-indigo-700 mb-1">Nº Camiseta *</label>
-                <input type="number" v-model="form.numero_camiseta" required min="0" max="99" placeholder="Ej: 23"
-                  class="w-full px-3 py-2 border-2 border-indigo-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none bg-indigo-50">
-              </div>
-              <div class="flex items-end pb-2">
-                <div class="flex items-center">
-                    <input type="checkbox" v-model="form.es_capitan" id="capitan"
-                        class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer">
-                    <label for="capitan" class="ml-2 block text-sm font-medium text-gray-700 cursor-pointer">
-                        Es Capitán
-                    </label>
-                </div>
-              </div>
-            </div>
-
           </div>
 
-          <div class="mt-6 flex justify-end space-x-3 pt-4">
+          <div class="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <button type="button" @click="close"
               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               Cancelar
@@ -144,11 +125,9 @@ const form = ref({
   id_jugador: null,
   nombre: '',
   apellido: '',
-  numero_camiseta: '',
   posicion: '',
   estatura: '',
-  fecha_nacimiento: '',
-  es_capitan: false
+  fecha_nacimiento: ''
 })
 
 const resetForm = () => {
@@ -156,11 +135,9 @@ const resetForm = () => {
     id_jugador: null,
     nombre: '',
     apellido: '',
-    numero_camiseta: '',
     posicion: '',
     estatura: '',
-    fecha_nacimiento: '',
-    es_capitan: false
+    fecha_nacimiento: ''
   }
   jugadorSeleccionado.value = ''
 }
@@ -168,7 +145,6 @@ const resetForm = () => {
 const llenarDatosLibre = () => {
     if (jugadorSeleccionado.value) {
         const j = jugadorSeleccionado.value;
-        
         form.value.id_jugador = j.id_jugador || j.idJugador;
         form.value.nombre = j.nombre;
         form.value.apellido = j.apellido;
@@ -179,22 +155,18 @@ const llenarDatosLibre = () => {
         form.value.fecha_nacimiento = fechaNac ? fechaNac.split('T')[0] : '';
     }
 }
-
 watch(() => props.jugador, (newVal) => {
   if (newVal) {
     modoAgenteLibre.value = false;
-    
     const fechaNac = newVal.fecha_nacimiento || newVal.fechaNacimiento;
     
     form.value = {
       id_jugador: newVal.id_jugador || newVal.idJugador,
       nombre: newVal.nombre || '',
       apellido: newVal.apellido || '',
-      numero_camiseta: newVal.numero_camiseta || '',
       posicion: newVal.posicion || '',
       estatura: newVal.estatura || '',
-      fecha_nacimiento: fechaNac ? fechaNac.split('T')[0] : '',
-      es_capitan: newVal.es_capitan || false
+      fecha_nacimiento: fechaNac ? fechaNac.split('T')[0] : ''
     }
   } else {
     resetForm()
@@ -202,13 +174,33 @@ watch(() => props.jugador, (newVal) => {
   }
 }, { immediate: true })
 
+const calcularEdad = (fecha) => {
+    if (!fecha) return 0;
+    const hoy = new Date();
+    const nacimiento = new Date(fecha);
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const mes = hoy.getMonth() - nacimiento.getMonth();
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+    }
+    return edad;
+};
+
 const handleSubmit = () => {
+  if (form.value.fecha_nacimiento) {
+      const edad = calcularEdad(form.value.fecha_nacimiento);
+      if (edad < 12) {
+          alert(`REGLA DEL CLUB: El jugador tiene ${edad} años. Por normativas del sistema, debe tener al menos 12 años cumplidos para ser registrado en la base de datos.`);
+          return; // Detenemos la ejecución, no se envía el emit
+      }
+  }
+
   const data = {
     ...form.value,
-    numero_camiseta: parseInt(form.value.numero_camiseta, 10),
     estatura: form.value.estatura ? parseFloat(form.value.estatura) : null,
     fecha_nacimiento: form.value.fecha_nacimiento || null
   }
+  
   emit('save', {
       data: data,
       isEditing: isEditing.value,

@@ -15,6 +15,6 @@ router.patch('/:id/deshabilitar', equipoController.deshabilitarEquipo);
 router.patch('/:id/habilitar', equipoController.habilitarEquipo);
 router.post('/:id/abandonar', equipoController.abandonarEquipo);
 router.post('/:id/unirse', equipoController.unirseEquipo);
-
+ 
 router.get('/:id/jugadores', equipoController.obtenerJugadores); 
 module.exports = router;
