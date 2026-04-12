@@ -22,37 +22,62 @@ const obtenerTodos = async () => {
 };
 
 const obtenerJugadoresPorEquipo = async (id_equipo) => {
-    const rows = await db.select({
-        id_jugador: schema.jugadores.idJugador,
-        nombre: schema.jugadores.nombre,
-        apellido: schema.jugadores.apellido,
-        fecha_nacimiento: schema.jugadores.fechaNacimiento,
-        posicion: schema.jugadores.posicion,
-        estatura: schema.jugadores.estatura,
-        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-        rol_equipo: schema.plantillaEquipo.rolEquipo,
-        es_capitan: schema.plantillaEquipo.esCapitan,
-        esta_suspendido: sql`EXISTS (
-            SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
-            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
-            WHERE s.id_jugador = ${schema.jugadores.idJugador}
-              AND rd.estado = 'Activa'
-              AND rd.partidos_suspension > rd.partidos_cumplidos
-        )`.as('esta_suspendido')
+    try {
+        const rows = await db.select({
+            id_jugador: schema.jugadores.idJugador,
+            nombre: schema.jugadores.nombre,
+            apellido: schema.jugadores.apellido,
+            fecha_nacimiento: schema.jugadores.fechaNacimiento,
+            posicion: schema.jugadores.posicion,
+            estatura: schema.jugadores.estatura,
+            activo: schema.plantillaEquipo.activo, // Solo pedimos activo, lo demás ya no vive aquí
+            
+            // EL DOBLE CHEQUEO DISCIPLINARIO GLOBAL
+            suspendido_db: sql`EXISTS (
+                SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador}
+                  AND rd.estado = 'Activa'
+                  AND rd.partidos_suspension > rd.partidos_cumplidos
+            ) OR EXISTS (
+                SELECT 1 FROM ${schema.sanciones} s2
+                WHERE s2.id_jugador = ${schema.jugadores.idJugador}
+                  AND s2.estado_resolucion = 'Pendiente'
+            )`.mapWith(Boolean) // Eliminamos el .as() extra para evitar problemas con Drizzle
 
-    })
-    .from(schema.jugadores)
-    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
-    .where(
-        and(
-            eq(schema.plantillaEquipo.idEquipo, id_equipo),
-            eq(schema.plantillaEquipo.activo, true)
-        )
-    );
+        })
+        .from(schema.jugadores)
+        .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+        .where(
+            and(
+                eq(schema.plantillaEquipo.idEquipo, id_equipo),
+                eq(schema.plantillaEquipo.activo, true)
+            )
+        );
 
-    return rows;
+        return rows.map(r => ({
+            id_jugador: r.id_jugador,
+            nombre: r.nombre,
+            apellido: r.apellido,
+            fecha_nacimiento: r.fecha_nacimiento,
+            posicion: r.posicion,
+            estatura: r.estatura,
+            activo: r.activo,
+            
+            // Rellenamos con nulos para que el Frontend no se queje
+            numero_camiseta: null,
+            rol_equipo: 'N/A',
+            es_capitan: false,
+            
+            // Transformamos el booleano puro
+            esta_suspendido: !!r.suspendido_db 
+        }));
+
+    } catch (error) {
+        console.error(`[BACKEND ERROR] Falló la consulta SQL en obtenerJugadoresPorEquipo:`, error);
+        throw error;
+    }
 };
-
 const obtenerPorId = async (id_equipo) => {
     const rows = await db.select({
         id_equipo: schema.equipos.idEquipo,
@@ -127,7 +152,6 @@ const crear = async (datosEquipo) => {
             canchaAsignadaId = nueva.id_cancha;
         }
 
-        // 3. CREAR EQUIPO
         const [nuevoEquipo] = await tx.insert(schema.equipos)
             .values({
                 nombreOficial: nombre_oficial,

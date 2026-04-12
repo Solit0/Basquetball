@@ -1,8 +1,7 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, sql, inArray, notInArray } = require('drizzle-orm');
+const { eq, and, sql, inArray, notInArray,asc } = require('drizzle-orm');
 
-// Helper para calcular edad exacta
 const calcularEdadEnFecha = (fechaNacimiento, fechaReferencia) => {
     const nacimiento = new Date(fechaNacimiento);
     const referencia = new Date(fechaReferencia);
@@ -198,26 +197,31 @@ const obtenerMiRoster = async (id_torneo, id_entrenador) => {
         id_jugador: schema.rosterTorneo.idJugador,
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
-        posicion: schema.jugadores.posicion,
         numero_camiseta: schema.rosterTorneo.numeroCamiseta,
         rol_roster: schema.rosterTorneo.rolRoster,
         es_capitan: schema.rosterTorneo.esCapitan,
-        id_equipo: sql`${idEquipo}`.as('id_equipo'), 
-        esta_suspendido: sql`EXISTS (
+        suspendido_db: sql`EXISTS (
             SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
             INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
             WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
               AND s.id_torneo = ${id_torneo}
               AND rd.estado = 'Activa'
               AND rd.partidos_suspension > rd.partidos_cumplidos
-        )`.as('esta_suspendido')
+        ) OR EXISTS (
+            SELECT 1 FROM ${schema.sanciones} s2
+            WHERE s2.id_jugador = ${schema.rosterTorneo.idJugador}
+              AND s2.id_torneo = ${id_torneo}
+              AND s2.estado_resolucion = 'Pendiente'
+        )`.as('suspendido_db')
     })
     .from(schema.rosterTorneo)
     .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
     .where(eq(schema.rosterTorneo.idInscripcion, idInscripcion))
     .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
-
-    return rows;
+    return rows.map(r => ({
+        ...r,
+        esta_suspendido: r.suspendido_db === true || r.suspendido_db === 'true' || r.suspendido_db === 1
+    }));
 };
 
 const editarRoster = async (id_torneo, id_entrenador, roster_actualizado) => {
@@ -316,29 +320,50 @@ const editarRoster = async (id_torneo, id_entrenador, roster_actualizado) => {
     }
 };
 const obtenerRosterPublico = async (id_torneo, id_equipo) => {
-    // 1. Buscamos la inscripción exacta de ese equipo en ese torneo
-    const inscripcionResult = await db.select({ idInscripcion: schema.inscripciones.idInscripcion })
-        .from(schema.inscripciones)
-        .where(
-            and(
-                eq(schema.inscripciones.idTorneo, id_torneo),
-                eq(schema.inscripciones.idEquipo, id_equipo)
-            )
-        ).limit(1);
+    const inscripcionInfo = await db.select({
+        id_inscripcion: schema.inscripciones.idInscripcion
+    })
+    .from(schema.inscripciones)
+    .where(
+        and(
+            eq(schema.inscripciones.idTorneo, id_torneo),
+            eq(schema.inscripciones.idEquipo, id_equipo),
+            eq(schema.inscripciones.estadoInscripcion, 'Aprobada')
+        )
+    )
+    .limit(1);
 
-    if (inscripcionResult.length === 0) return []; 
+    if (inscripcionInfo.length === 0) return [];
+    const idInscripcion = inscripcionInfo[0].id_inscripcion;
 
-    const rosterPublico = await db.select({
+    const rows = await db.select({
         id_jugador: schema.rosterTorneo.idJugador,
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
-        es_capitan: schema.rosterTorneo.esCapitan
+        numero_camiseta: schema.rosterTorneo.numeroCamiseta,
+        es_capitan: schema.rosterTorneo.esCapitan,
+        
+        esta_suspendido: sql`EXISTS (
+            SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
+              AND s.id_torneo = ${id_torneo}
+              AND rd.estado = 'Activa'
+              AND rd.partidos_suspension > rd.partidos_cumplidos
+        ) OR EXISTS (
+            SELECT 1 FROM ${schema.sanciones} s2
+            WHERE s2.id_jugador = ${schema.rosterTorneo.idJugador}
+              AND s2.id_torneo = ${id_torneo}
+              AND s2.estado_resolucion = 'Pendiente'
+        )`.as('esta_suspendido')
+        
     })
     .from(schema.rosterTorneo)
     .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
-    .where(eq(schema.rosterTorneo.idInscripcion, inscripcionResult[0].idInscripcion));
+    .where(eq(schema.rosterTorneo.idInscripcion, idInscripcion))
+    .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
 
-    return rosterPublico;
+    return rows;
 };
 module.exports = {
     solicitarInscripcion,

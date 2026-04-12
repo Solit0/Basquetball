@@ -145,7 +145,7 @@
                                     <select v-model="san.tipo_sancion" required class="w-full mt-1 p-2 border rounded text-sm outline-none focus:ring-1 focus:ring-red-500">
                                         <option value="Conducta Antideportiva">Conducta Antideportiva</option>
                                         <option value="Agresión Física">Agresión Física</option>
-                                        <option value="Acumulación de Faltas">Acumulación de Faltas Técnicas</option>
+                                        <option value="Acumulación de Faltas Técnicas">Acumulación de Faltas Técnicas</option>
                                         <option value="Falta Flagrante">Falta Flagrante</option>
                                         <option value="Otro">Otro</option>
                                     </select>
@@ -223,7 +223,11 @@ const agregarIncidente = () => {
 }
 
 const agregarSancion = () => {
-    sanciones.value.push({ id_jugador: '', tipo_sancion: 'Conducta Antideportiva', fecha_inicio: null, fecha_fin: null, motivo: '' })
+    sanciones.value.push({ 
+        id_jugador: '', 
+        tipo_sancion: 'Conducta Antideportiva', 
+        motivo: '' 
+    })
 }
 
 const guardarResultado = async () => {
@@ -231,10 +235,10 @@ const guardarResultado = async () => {
     const totalVisitante = puntosVisitante.value.reduce((suma, jugador) => suma + (jugador.puntos || 0), 0);
 
     if (totalLocal !== parseInt(form.value.marcador_local)) {
-        return alert(`❌ INCONGRUENCIA EN MARCADOR LOCAL:\n\nLa suma de los puntos individuales (${totalLocal}) no coincide con el marcador final (${form.value.marcador_local}).`);
+        return alert(` INCONGRUENCIA EN MARCADOR LOCAL:\n\nLa suma de los puntos individuales (${totalLocal}) no coincide con el marcador final (${form.value.marcador_local}).`);
     }
     if (totalVisitante !== parseInt(form.value.marcador_visitante)) {
-        return alert(`❌ INCONGRUENCIA EN MARCADOR VISITANTE:\n\nLa suma de los puntos individuales (${totalVisitante}) no coincide con el marcador final (${form.value.marcador_visitante}).`);
+        return alert(` INCONGRUENCIA EN MARCADOR VISITANTE:\n\nLa suma de los puntos individuales (${totalVisitante}) no coincide con el marcador final (${form.value.marcador_visitante}).`);
     }
 
     if (!confirm(`¿Confirmas que el marcador oficial fue ${form.value.marcador_local} a ${form.value.marcador_visitante}?\n\nEl equipo perdedor será eliminado del torneo. Esta acción no se puede deshacer.`)) {
@@ -257,7 +261,7 @@ const guardarResultado = async () => {
             id_equipo_visitante: props.partido.id_visitante || props.partido.id_equipo_visitante,
             marcador_local: parseInt(form.value.marcador_local),
             marcador_visitante: parseInt(form.value.marcador_visitante),
-            id_arbitro: props.partido.id_arbitro_principal, // 🔴 Extraemos el árbitro del objeto partido
+            id_arbitro: props.partido.id_arbitro_principal, 
             informe_contenido: form.value.informe_contenido,
             incidentes: incidentesLimpios,
             sanciones: sanciones.value,

@@ -273,20 +273,53 @@ const finalizarPartido = async (id_partido, datosResultado) => {
             }
 
             if (sanciones && sanciones.length > 0) {
-                const sancionesData = sanciones.map(san => ({
-                    idJugador: san.id_jugador,
-                    idTorneo: id_torneo,
-                    idPartido: id_partido,
-                    motivo: san.motivo,
-                    fechaInicio: san.fecha_inicio,
-                    fechaFin: san.fecha_fin,
-                    tipoSancion: san.tipo_sancion
-                }));
+                
+                const tiposValidos = [
+                    'Conducta Antideportiva', 
+                    'Agresión Física', 
+                    'Acumulación de Faltas Técnicas', 
+                    'Falta Flagrante', 
+                    'Otro'
+                ];
+
+                const sancionesData = sanciones.map(san => {
+                    if (!tiposValidos.includes(san.tipo_sancion)) {
+                        throw new Error(`El tipo de sanción '${san.tipo_sancion}' no es válido o fue manipulado.`);
+                    }
+                    return {
+                        idJugador: san.id_jugador,
+                        idTorneo: id_torneo,
+                        idPartido: id_partido,
+                        motivo: san.motivo,
+                        tipoSancion: san.tipo_sancion,
+                        estadoResolucion: 'Pendiente' 
+                    };
+                });
                 await tx.insert(schema.sanciones).values(sancionesData);
+                for (const san of sancionesData) {
+                    const rosterInfo = await tx.select({ id_roster: schema.rosterTorneo.idRoster })
+                        .from(schema.rosterTorneo)
+                        .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
+                        .where(
+                            and(
+                                eq(schema.rosterTorneo.idJugador, san.idJugador),
+                                eq(schema.inscripciones.idTorneo, id_torneo)
+                            )
+                        )
+                        .limit(1);
+
+                    if (rosterInfo.length > 0) {
+                        await tx.update(schema.rosterTorneo)
+                            .set({ 
+                                rolRoster: 'Suplente', 
+                                esCapitan: false 
+                            })
+                            .where(eq(schema.rosterTorneo.idRoster, rosterInfo[0].id_roster));
+                    }
+                }
             }
 
             if (puntos_jugadores && puntos_jugadores.length > 0) {
-
                 const rosters = await tx.select({
                     id_jugador: schema.rosterTorneo.idJugador,
                     id_roster: schema.rosterTorneo.idRoster
@@ -294,10 +327,12 @@ const finalizarPartido = async (id_partido, datosResultado) => {
                 .from(schema.rosterTorneo)
                 .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
                 .where(eq(schema.inscripciones.idTorneo, id_torneo));
+                
                 const mapaRosters = {};
                 rosters.forEach(r => {
                     mapaRosters[r.id_jugador] = r.id_roster;
                 });
+                
                 const puntosData = puntos_jugadores
                     .filter(pj => pj.puntos > 0)
                     .map(pj => {
@@ -318,23 +353,17 @@ const finalizarPartido = async (id_partido, datosResultado) => {
                 }
             }
 
-            return { mensaje: 'Partido finalizado, informe guardado y perdedor eliminado.' };
+            return { mensaje: 'Partido finalizado, informe guardado, castigos preventivos aplicados y perdedor eliminado.' };
         });
     } catch (error) {
-    
-    
         console.error("Mensaje principal:", error.message);
         if (error.cause) {
             console.error("Causa (PostgresError):", error.cause.message);
             console.error("Detalle:", error.cause.detail);
-            console.error("Código DB:", error.cause.code);
-            console.error("Tabla afectada:", error.cause.table);
-            console.error("Columna afectada:", error.cause.column);
         }
         throw error;
     }
 };
-
 const obtenerHistorialEquipo = async (id_entrenador) => {
     const equipoLocal = alias(schema.equipos, 'equipo_local');
     const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
@@ -464,7 +493,6 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
             id_jugador: schema.rosterTorneo.idJugador,
             estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Ausente')`.as('estado_asistencia'),
             puntos_anotados: sql`COALESCE(${schema.estadisticasPartido.puntosAnotados}, 0)`.as('puntos_anotados'),
-            // Tomamos el rol directamente del roster oficial
             rol_partido: schema.rosterTorneo.rolRoster, 
             nombre: schema.jugadores.nombre,
             apellido: schema.jugadores.apellido,

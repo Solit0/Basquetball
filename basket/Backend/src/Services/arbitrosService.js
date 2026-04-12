@@ -258,12 +258,19 @@ const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
         es_capitan: schema.rosterTorneo.esCapitan, 
         estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Pendiente')`.as('estado_asistencia'),
         esta_suspendido: sql`EXISTS (
+            -- Caso A: Ya tiene una resolución dictaminada por el Admin
             SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
             INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
             WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
-              AND s.id_torneo = ${idTorneo}
-              AND rd.estado = 'Activa'
-              AND rd.partidos_suspension > rd.partidos_cumplidos
+            AND s.id_torneo = ${idTorneo}
+            AND rd.estado = 'Activa'
+            AND rd.partidos_suspension > rd.partidos_cumplidos
+        ) OR EXISTS (
+            -- Caso B: El árbitro lo reportó y el Admin NO lo ha revisado (Preventiva)
+            SELECT 1 FROM ${schema.sanciones} s
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
+            AND s.id_torneo = ${idTorneo}
+            AND s.estado_resolucion = 'Pendiente'
         )`.as('esta_suspendido')
     })
     .from(schema.rosterTorneo)

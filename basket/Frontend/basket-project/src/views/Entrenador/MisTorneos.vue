@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <div v-if="showReglamentoModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div v-if="showReglamentoModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
                 <div class="bg-red-600 px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <h3 class="font-black tracking-widest uppercase flex items-center">
@@ -208,7 +208,7 @@
 
         </div>
 
-        <div v-if="showScoutingModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+        <div v-if="showScoutingModal" class="fixed inset-0 z-120 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
                 <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <div>
@@ -292,8 +292,6 @@ onMounted(async () => {
         if (!idUsuario) return;
         const data = await obtenerTorneosDeEquipoService(idUsuario)
         torneos.value = data
-        
-        // Asignación inicial por si acaso, pero la haremos dinámica más abajo
         if (data.length > 0 && data[0].id_equipo) {
             miEquipoId.value = data[0].id_equipo
         }
@@ -308,7 +306,6 @@ const haAceptadoReglas = (idTorneo) => {
 }
 
 const intentarSeleccionarTorneo = (torneo) => {
-    // 🔴 SOLUCIÓN 1: Actualizamos el ID de "Mi Equipo" dinámicamente según el torneo clickeado
     if (torneo.id_equipo) {
         miEquipoId.value = torneo.id_equipo;
     }
@@ -348,8 +345,6 @@ const cargarDetallesTorneo = async (torneo) => {
     try {
         equiposRivales.value = await obtenerEquiposInscritosService(torneo.id_torneo)
         partidosTorneo.value = await obtenerPartidosPorTorneo(torneo.id_torneo)
-        
-        // 🔴 SOLUCIÓN 2: EL FALLBACK DE SEGURIDAD
         console.log("Intentando obtener roster privado...");
         let dataRoster = await obtenerMiRosterService(torneo.id_torneo, idUsuario)
         

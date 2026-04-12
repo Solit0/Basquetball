@@ -25,7 +25,6 @@ const crear = async (canchaData) => {
         throw new Error("Ya existe una cancha registrada con esta misma dirección exacta.");
     }
     
-    // Insertamos la nueva cancha
     const rows = await db.insert(schema.canchas)
         .values({
             nombreCancha: canchaData.nombre_cancha,

@@ -1,253 +1,38 @@
 <template>
-    <div>
-        <div class="min-h-screen bg-gray-50">
-            <nav class="bg-white shadow-md">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="flex justify-between items-center h-16">
-                        <div class="flex items-center">
-                            <div class="shrink-0">
-                                <h1 class="text-2xl font-bold text-indigo-600">BasketPro</h1>
-                            </div>
-                        </div>
-                        <div class="hidden md:block">
-                            <div class="ml-10 flex items-center space-x-4">
-                                <span class="text-gray-900 px-3 py-2 text-sm font-medium">
-                                    {{ userName }}
-                                </span>
-                                <button @click="logout"
-                                    class="text-gray-600 hover:text-red-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                    Cerrar Sesión
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+    <div class="min-h-screen bg-gray-50 flex flex-col">
+        <NavbarEntrenador :userName="userName" />
+
+        <div class="flex flex-1 overflow-hidden">
+            <Sidebar :activeTab="activeTab" :hasTeam="hasTeam" @navigate="navigateTo" />
+
+            <main class="flex-1 overflow-auto bg-gray-50/50">
+                <div class="py-8 px-6 sm:px-8 lg:px-10">
+                    
+                    <MiEquipo v-if="activeTab === 'equipo'" 
+                        :equipo="equipoActual" 
+                        :estadisticas="estadisticas" 
+                        :hasTeam="hasTeam"
+                        @edit="showEditarEquipoModal = true"
+                        @toggle="toggleTeamStatus"
+                        @leave="abandonarEquipoDirigido"
+                    />
+
+                    <Jugadores v-if="activeTab === 'jugadores'" 
+                        :equipo="equipoActual" 
+                        @cambio-jugadores="cargarEstadisticas" 
+                    />
+
+                    <MisTorneos v-if="activeTab === 'torneo'" />
+                    <InscribirTorneos v-if="activeTab === 'inscribir-torneos'" />
+                    <CalendarioPartidos v-if="activeTab === 'calendario-partidos'" />
+                    <HistorialPartidos v-if="activeTab === 'torneos-jugados'" />
+                    
+                    <Perfil v-if="activeTab === 'perfil'" @perfil-actualizado="actualizarNombreNavbar" />
+
                 </div>
-            </nav>
-
-            <div class="flex flex-col md:flex-row min-h-[calc(100vh-64px)]">
-                
-                <Sidebar :activeTab="activeTab" :hasTeam="hasTeam" @navigate="navigateTo" />
-
-                <main class="flex-1 overflow-auto">
-                    <div class="py-6 px-4 sm:px-6 lg:px-8">
-                        
-                        <div v-if="activeTab === 'equipo'" class="space-y-6">
-                            <div v-if="hasTeam" class="space-y-6">
-                                <div class="flex justify-between items-end bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                                    <div>
-                                        <h2 class="text-3xl font-bold text-gray-900">
-                                            {{ equipoActual ? equipoActual.nombre_oficial : 'Mi Equipo' }} 
-                                            <span class="text-lg text-gray-500 font-normal ml-2">({{ equipoActual?.siglas }})</span>
-                                            <span v-if="!equipoActual?.activo" 
-                                                class="ml-3 px-2 py-1 bg-red-100 text-red-800 text-sm rounded-full">
-                                                Inactivo
-                                            </span>
-                                        </h2>
-                                        <p class="mt-2 text-gray-600">
-                                            Sede: {{ equipoActual?.direccion_cancha || 'No definida' }} | 
-                                            Categoría: <span class="capitalize">{{ equipoActual?.clasificacion || 'General' }}</span>
-                                        </p>
-                                    </div>
-                                    <div class="flex space-x-3">
-                                        <button @click="openEditTeamModal" 
-                                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors shadow-sm">
-                                            Editar Datos
-                                        </button>
-                                        <button @click="toggleTeamStatus" 
-                                            :class="[
-                                                'px-4 py-2 rounded-md transition-colors shadow-sm font-medium',
-                                                equipoActual?.activo 
-                                                    ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300' 
-                                                    : 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-300'
-                                            ]">
-                                            {{ equipoActual?.activo ? 'Pausar Equipo' : 'Reactivar Equipo' }}
-                                        </button>
-                                        <button @click="abandonarEquipoDirigido" 
-                                            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors shadow-sm flex items-center">
-                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                                            Abandonar
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                        <p class="text-gray-600 text-sm">Jugadores Registrados</p>
-                                        <p class="text-3xl font-bold text-gray-900">{{ estadisticas?.jugadores_activos || 0 }}</p>
-                                    </div>
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                        <p class="text-gray-600 text-sm">Partidos Jugados</p>
-                                        <p class="text-3xl font-bold text-gray-900">{{ estadisticas?.partidos_jugados || 0 }}</p>
-                                    </div>
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                        <p class="text-gray-600 text-sm">Victorias</p>
-                                        <p class="text-3xl font-bold text-green-600">{{ estadisticas?.victorias || 0 }}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-else class="flex flex-col items-center justify-center py-20 bg-white rounded-lg shadow-md border-2 border-dashed border-gray-200">
-                                <div class="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
-                                    <svg class="h-12 w-12 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                </div>
-                                <h2 class="text-2xl font-bold text-gray-900 mb-2">Aún no diriges ningún equipo</h2>
-                                <p class="text-gray-600 mb-8 text-center max-w-md">Crea un equipo nuevo o únete a uno que no tenga entrenador.</p>
-                                
-                                <div class="flex space-x-4">
-                                    <button @click="$router.push('/crear-equipo')" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-sm flex items-center">
-                                        Crear Equipo Nuevo
-                                    </button>
-                                    <button @click="irAEquiposLibres" class="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center">
-                                        Unirme a un Equipo
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="activeTab === 'jugadores'" class="space-y-6">
-                            <div v-if="hasTeam">
-                                <div class="flex justify-between items-center mb-6">
-                                    <div>
-                                        <h2 class="text-3xl font-bold text-gray-900">Directorio de Jugadores</h2>
-                                        <p class="mt-2 text-gray-600">Registra jugadores en tu club. Elegirás a los titulares y sus números al inscribirte a cada torneo.</p>
-                                    </div>
-                                    <button @click="openAddPlayerModal"
-                                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors shadow-sm font-medium">
-                                        + Fichar Jugador
-                                    </button>
-                                </div>
-
-                                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                                    <div v-if="players.length === 0" class="text-center py-12">
-                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        <h3 class="mt-2 text-sm font-medium text-gray-900">Base de datos vacía</h3>
-                                        <p class="mt-1 text-sm text-gray-500">Comienza registrando jugadores a tu club.</p>
-                                    </div>
-
-                                    <table v-else class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Completo</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posición</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estatura</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nacimiento</th>
-                                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                            <tr v-for="player in players" :key="player.id_jugador" class="hover:bg-gray-50">
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-bold text-gray-900">{{ player.nombre }} {{ player.apellido }}</div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                    {{ player.posicion || 'No definida' }}
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                    {{ player.estatura ? player.estatura + ' m' : 'N/A' }}
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                    {{ player.fecha_nacimiento ? player.fecha_nacimiento.split('T')[0] : 'N/A' }}
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                                                    <button @click="editPlayer(player)" class="text-indigo-600 hover:text-indigo-900 mr-4">
-                                                        Editar
-                                                    </button>
-                                                    <button @click="confirmDeletePlayer(player)" class="text-red-600 hover:text-red-900">
-                                                        Dar de Baja
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            <div v-else class="flex flex-col items-center justify-center py-20 bg-white rounded-lg shadow-md border-2 border-dashed border-gray-200">
-                                <div class="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
-                                    <svg class="h-12 w-12 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                </div>
-                                <h2 class="text-2xl font-bold text-gray-900 mb-2">Sección Bloqueada</h2>
-                                <p class="text-gray-600 mb-8 text-center max-w-md">Para registrar jugadores, primero debes tener un equipo asignado.</p>
-                                <div class="flex space-x-4">
-                                    <button @click="$router.push('/crear-equipo')" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-sm">
-                                        Crear Equipo
-                                    </button>
-                                    <button @click="irAEquiposLibres" class="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition shadow-sm">
-                                        Unirme a Equipo
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="activeTab === 'torneo'" class="h-full animate-fade-in">
-                            <MisTorneos />
-                        </div>
-                        <div v-if="activeTab === 'inscribir-torneos'" class="h-full animate-fade-in">
-                            <InscribirTorneos />
-                        </div>
-                        <div v-if="activeTab === 'calendario-partidos'" class="h-full animate-fade-in">
-                            <CalendarioPartidos />
-                        </div>
-                        <div v-if="activeTab === 'torneos-jugados'" class="h-full animate-fade-in">
-                            <HistorialPartidos />
-                        </div>
-
-                        <div v-if="activeTab === 'perfil'" class="space-y-6 max-w-3xl mx-auto">
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-                                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                                    <svg class="w-6 h-6 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                    Mi Perfil Personal
-                                </h2>
-                                
-                                <form @submit.prevent="guardarPerfil" class="space-y-5">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                                            <input type="text" v-model="perfilForm.nombre" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
-                                            <input type="text" v-model="perfilForm.apellido" required
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
-                                        <input type="email" v-model="perfilForm.correo" required
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-gray-50">
-                                    </div>
-
-                                    <div class="pt-4 flex justify-end">
-                                        <button type="submit" :disabled="guardandoPerfil"
-                                            class="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 flex items-center">
-                                            <span v-if="guardandoPerfil">Guardando...</span>
-                                            <span v-else>Actualizar Perfil</span>
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-
-                    </div>
-                </main>
-            </div>
+            </main>
         </div>
 
-        <ModalAgregarJugador 
-            :show="showPlayerModal"
-            :jugador="selectedPlayer"
-            :jugadoresLibres="jugadoresLibres"
-            @close="closePlayerModal"
-            @save="savePlayer"
-        />
         <EditarEquipo 
             :show="showEditarEquipoModal"
             :equipo="equipoActual"
@@ -259,93 +44,55 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import Sidebar from '../components/Sidebar.vue'
-import EditarEquipo from '../modals/EditarEquipo.vue'
-import ModalAgregarJugador from '../views/ModalAgregarJugador.vue'
-import HistorialPartidos from './Entrenador/HistorialPartidos.vue'
-import MisTorneos from './Entrenador/MisTorneos.vue' 
-import InscribirTorneos from './Entrenador/InscribirTorneos.vue'
-import CalendarioPartidos from './Espectadores/CalendarioPartidos.vue'
 import { api } from '../Enviroments/enviroment'
 import { obtenerEquipoDeEntrenadorService, actualizarEquipoService } from '../services/equiposService'
-import { 
-    obtenerJugadoresPorEquipoService, 
-    crearJugadorService, 
-    actualizarJugadorService, 
-    eliminarJugadorService,
-    obtenerJugadoresLibresService,
-    vincularJugadorService
-} from '../services/jugadoresService'
-import { actualizarPerfilService } from '../services/usuarioService' 
-const router = useRouter()
+
+import Sidebar from '../components/Sidebar.vue'
+import NavbarEntrenador from '../components/NavbarEntrenador.vue' 
+import EditarEquipo from '../modals/EditarEquipo.vue'
+
+import MiEquipo from './Entrenador/MiEquipo.vue' 
+import Jugadores from './Entrenador/Jugadores.vue' 
+import MisTorneos from './Entrenador/MisTorneos.vue' 
+import InscribirTorneos from './Entrenador/InscribirTorneos.vue'
+import HistorialPartidos from './Entrenador/HistorialPartidos.vue'
+import CalendarioPartidos from './Espectadores/CalendarioPartidos.vue'
+import Perfil from './Entrenador/Perfil.vue'
+
 const activeTab = ref('equipo')
-const jugadoresLibres = ref([])
 const usuarioData = JSON.parse(localStorage.getItem('usuario') || '{}')
 const userName = ref(usuarioData.nombre || 'Entrenador')
 const showEditarEquipoModal = ref(false)
 const hasTeam = ref(false)
 const equipoActual = ref(null)
 const estadisticas = ref(null)
-const guardandoPerfil = ref(false)
-const players = ref([])
-const showPlayerModal = ref(false)
-const selectedPlayer = ref(null)
-
-const perfilForm = ref({
-    nombre: usuarioData.nombre || '',
-    apellido: usuarioData.apellido || '',
-    correo: usuarioData.correo || ''
-})
 
 const obtenerMiEquipo = async () => {
     try {
         const idEntrenador = localStorage.getItem('usuario_id')
         const data = await obtenerEquipoDeEntrenadorService(idEntrenador)
-        
         if (data) {
             hasTeam.value = true
             equipoActual.value = data
             await cargarEstadisticas()
         }
     } catch (error) {
-        if (error.response?.status === 404) {
-            hasTeam.value = false
-        } else {
-            console.error("Error al obtener el equipo:", error)
-        }
-    }
-}
-
-const guardarPerfil = async () => {
-    guardandoPerfil.value = true;
-    try {
-        const idUsuario = localStorage.getItem('usuario_id');
-        const respuesta = await actualizarPerfilService(idUsuario, perfilForm.value);
-        
-        const nuevoUsuarioLocal = { ...usuarioData, ...respuesta.usuario };
-        localStorage.setItem('usuario', JSON.stringify(nuevoUsuarioLocal));
-        
-        userName.value = respuesta.usuario.nombre;
-        alert('Perfil actualizado exitosamente.');
-    } catch (error) {
-        alert(error.response?.data?.error || 'Error al actualizar el perfil.');
-    } finally {
-        guardandoPerfil.value = false;
+        if (error.response?.status === 404) hasTeam.value = false;
+        else console.error("Error al obtener el equipo:", error);
     }
 }
 
 const cargarEstadisticas = async () => {
-    if (equipoActual.value) {
-        try {
-            const response = await api.get(`/equipos/${equipoActual.value.id_equipo}/estadisticas`)
-            estadisticas.value = response.data
-        } catch (error) {
-            console.error('Error al cargar estadísticas:', error)
-        }
+    if (!equipoActual.value) return;
+    try {
+        const response = await api.get(`/equipos/${equipoActual.value.id_equipo}/estadisticas`)
+        estadisticas.value = response.data
+    } catch (error) {
+        console.error('Error al cargar estadísticas:', error)
     }
 }
 
+// Lógica de acciones del equipo
 const toggleTeamStatus = async () => {
     try {
         const endpoint = equipoActual.value.activo ? 'deshabilitar' : 'habilitar'
@@ -359,136 +106,40 @@ const toggleTeamStatus = async () => {
 
 const abandonarEquipoDirigido = async () => {
     if (!equipoActual.value) return;
-    const confirmacion = confirm(`¿Estás TOTALMENTE seguro de que deseas abandonar el equipo "${equipoActual.value.nombre_oficial}"?`);
-    
-    if (confirmacion) {
+    if (confirm(`¿Estás TOTALMENTE seguro de que deseas abandonar el equipo "${equipoActual.value.nombre_oficial}"?`)) {
         try {
             await api.post(`/equipos/${equipoActual.value.id_equipo}/abandonar`);
             alert('Has abandonado el equipo exitosamente.');
             equipoActual.value = null;
             hasTeam.value = false;
-            players.value = [];
             estadisticas.value = null;
+            activeTab.value = 'equipo';
         } catch (error) {
-            alert(error.response?.data?.error || 'Ocurrió un error al intentar abandonar el equipo.');
+            alert(error.response?.data?.error || 'Error al intentar abandonar el equipo.');
         }
     }
 }
-
-const openEditTeamModal = () => showEditarEquipoModal.value = true
-const closeEditTeamModal = () => showEditarEquipoModal.value = false
 
 const saveTeam = async (updatedData) => {
     try {
         await actualizarEquipoService(equipoActual.value.id_equipo, updatedData)
         equipoActual.value = { ...equipoActual.value, ...updatedData }
-        alert('Datos del equipo actualizados correctamente')
-        closeEditTeamModal()
+        alert('Datos actualizados correctamente')
+        showEditarEquipoModal.value = false
     } catch (error) {
-        alert(error.response?.data?.error || 'Error al actualizar los datos del equipo')
+        alert(error.response?.data?.error || 'Error al actualizar equipo')
     }
 }
 
-const cargarJugadores = async () => {
-    if (equipoActual.value) {
-        try {
-            const data = await obtenerJugadoresPorEquipoService(equipoActual.value.id_equipo)
-            players.value = data
-        } catch (error) {
-            console.error('Error al cargar jugadores:', error)
-        }
-    }
-}
-
-const cargarJugadoresLibres = async () => {
-    try {
-        jugadoresLibres.value = await obtenerJugadoresLibresService();
-    } catch (error) {
-        console.error('Error cargando agentes libres:', error)
-    }
-}
-
-const openAddPlayerModal = async () => {
-    selectedPlayer.value = null
-    await cargarJugadoresLibres();
-    showPlayerModal.value = true
-}
-
-const editPlayer = (player) => {
-    selectedPlayer.value = player
-    showPlayerModal.value = true
-}
-
-const closePlayerModal = () => {
-    showPlayerModal.value = false
-    selectedPlayer.value = null
-}
-
-const savePlayer = async (payload) => {
-    try {
-        if (payload.isEditing) {
-            await actualizarJugadorService(payload.data.id_jugador, {
-                ...payload.data,
-                id_equipo: equipoActual.value.id_equipo 
-            })
-            alert('Jugador actualizado correctamente')
-        } else if (payload.isAgenteLibre) {
-            await vincularJugadorService(payload.data.id_jugador, {
-                // El backend ignorará los campos de camiseta/capitán globalmente, pero los enviamos por seguridad estructural del payload.
-                numero_camiseta: payload.data.numero_camiseta || 0,
-                es_capitan: false,
-                id_equipo: equipoActual.value.id_equipo
-            })
-            alert('Agente libre fichado correctamente')
-        } else {
-            await crearJugadorService({
-                ...payload.data,
-                id_equipo: equipoActual.value.id_equipo
-            })
-            alert('Nuevo jugador registrado correctamente')
-        }
-        await cargarJugadores()
-        await cargarEstadisticas()
-        closePlayerModal()
-    } catch (error) {
-        alert(error.response?.data?.error || 'Error al procesar el jugador')
-    }
-}
-
-const confirmDeletePlayer = (player) => {
-    if (confirm(`¿Estás seguro de dar de baja a ${player.nombre} ${player.apellido}?`)) {
-        eliminarJugador(player)
-    }
-}
-
-const eliminarJugador = async (player) => {
-    try {
-        await eliminarJugadorService(player.id_jugador, equipoActual.value.id_equipo)
-        alert('Jugador dado de baja exitosamente')
-        await cargarJugadores()
-        await cargarEstadisticas()
-    } catch (error) {
-        alert('Error al dar de baja al jugador')
-    }
-}
-
+// Navegación interna y actualización de UI
 const navigateTo = (tab) => activeTab.value = tab
-const irAEquiposLibres = () => router.push('/equipos-libres');
-const logout = () => {
-    localStorage.removeItem('usuario')
-    localStorage.removeItem('usuario_id')
-    router.push('/login')
-}
+const actualizarNombreNavbar = (nuevoNombre) => userName.value = nuevoNombre
 
 onMounted(async () => {
     await obtenerMiEquipo()
-    if (equipoActual.value) {
-        await cargarJugadores()
-    }
 })
 </script>
 
 <style scoped>
-.animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+/* Elimina animaciones innecesarias si ya las manejan los componentes hijos */
 </style>
