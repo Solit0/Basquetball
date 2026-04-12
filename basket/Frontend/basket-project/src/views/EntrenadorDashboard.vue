@@ -91,8 +91,6 @@ const cargarEstadisticas = async () => {
         console.error('Error al cargar estadísticas:', error)
     }
 }
-
-// Lógica de acciones del equipo
 const toggleTeamStatus = async () => {
     try {
         const endpoint = equipoActual.value.activo ? 'deshabilitar' : 'habilitar'
@@ -103,7 +101,6 @@ const toggleTeamStatus = async () => {
         alert('Error al cambiar el estado del equipo')
     }
 }
-
 const abandonarEquipoDirigido = async () => {
     if (!equipoActual.value) return;
     if (confirm(`¿Estás TOTALMENTE seguro de que deseas abandonar el equipo "${equipoActual.value.nombre_oficial}"?`)) {
@@ -119,7 +116,6 @@ const abandonarEquipoDirigido = async () => {
         }
     }
 }
-
 const saveTeam = async (updatedData) => {
     try {
         await actualizarEquipoService(equipoActual.value.id_equipo, updatedData)
@@ -130,16 +126,11 @@ const saveTeam = async (updatedData) => {
         alert(error.response?.data?.error || 'Error al actualizar equipo')
     }
 }
-
-// Navegación interna y actualización de UI
 const navigateTo = (tab) => activeTab.value = tab
 const actualizarNombreNavbar = (nuevoNombre) => userName.value = nuevoNombre
-
 onMounted(async () => {
     await obtenerMiEquipo()
 })
 </script>
-
 <style scoped>
-/* Elimina animaciones innecesarias si ya las manejan los componentes hijos */
 </style>

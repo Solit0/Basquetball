@@ -72,7 +72,7 @@
           <div v-else>
             <div v-if="partidosSeleccionados.length === 0" class="text-gray-500 text-sm text-center py-8">No hay encuentros programados.</div>
 
-            <div v-else class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+            <div v-else class="space-y-4 max-h-150 overflow-y-auto pr-2">
               <div v-for="partido in partidosSeleccionados" :key="partido.id_partido" class="border border-gray-100 rounded-xl p-4 shadow-sm bg-gray-50 hover:border-indigo-200 transition-colors group">
                 
                 <div class="flex justify-between items-start mb-2">
@@ -112,7 +112,7 @@
       </div>
     </main>
 
-    <div v-if="modalAbierto && fichaActual" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div v-if="modalAbierto && fichaActual" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in-up">
             <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
                 <div>
@@ -191,7 +191,7 @@
             </div>
         </div>
 
-        <div v-if="modalRosterAbierto && partidoRosterActual" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div v-if="modalRosterAbierto && partidoRosterActual" class="fixed inset-0 z-120 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in-up">
                 
                 <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
