@@ -365,6 +365,31 @@ const resolucionesDisciplinarias = pgTable("resoluciones_disciplinarias", {
         name: "resoluciones_disciplinarias_id_sancion_fkey"
     }).onDelete("cascade")
 ]);
+const zonasCancha = pgTable("zonas_cancha", {
+    idZona: uuid("id_zona").defaultRandom().primaryKey().notNull(),
+    idCancha: uuid("id_cancha").notNull().references(() => canchas.idCancha),
+    nombreZona: varchar("nombre_zona", { length: 100 }).notNull(), 
+    capacidad: integer("capacidad").notNull(),
+    activo: boolean("activo").default(true),
+});
+const boletosPartido = pgTable("boletos_partido", {
+    idBoleto: uuid("id_boleto").defaultRandom().primaryKey().notNull(),
+    idPartido: uuid("id_partido").notNull().references(() => partidos.idPartido),
+    idZona: uuid("id_zona").notNull().references(() => zonasCancha.idZona),
+    precio: numeric("precio", { precision: 10, scale: 2 }).notNull(), 
+    disponibles: integer("disponibles").notNull(), 
+});
+const transaccionesTicketing = pgTable("transacciones_ticketing", {
+    idTransaccion: uuid("id_transaccion").defaultRandom().primaryKey().notNull(),
+    idUsuario: uuid("id_usuario").notNull().references(() => usuarios.idUsuario), 
+    idBoleto: uuid("id_boleto").notNull().references(() => boletosPartido.idBoleto),
+    cantidad: integer("cantidad").notNull().default(1),
+    montoTotal: numeric("monto_total", { precision: 10, scale: 2 }).notNull(),
+    metodoPago: varchar("metodo_pago", { length: 50 }).notNull(), 
+    estadoPago: varchar("estado_pago", { length: 20 }).default('Pendiente'), 
+    fechaCompra: timestamp("fecha_compra").defaultNow(),
+    referenciaPasarela: varchar("referencia_pasarela", { length: 255 }), 
+});
 module.exports = {
     roles,
     usuarios,
@@ -389,4 +414,7 @@ module.exports = {
     asistenciaPartidos,
     rosterTorneo,
     resolucionesDisciplinarias,
+    zonasCancha,
+    boletosPartido,
+    transaccionesTicketing
 };

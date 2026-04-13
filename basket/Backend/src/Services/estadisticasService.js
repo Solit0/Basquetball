@@ -1,8 +1,8 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, or, sql, desc } = require('drizzle-orm');
+const { eq, and, or, sql } = require('drizzle-orm');
 
-const obtenerRankingEquipos = async (categoriaFiltro) => {
+const obtenerRankingEquipos = async (categoriaFiltro, idClasificacionFiltro, idTorneoFiltro) => {
     try {
         let query = db.select({
             id_equipo: schema.equipos.idEquipo,
@@ -35,22 +35,34 @@ const obtenerRankingEquipos = async (categoriaFiltro) => {
             )
         )
         .innerJoin(schema.torneos, eq(schema.partidos.idTorneo, schema.torneos.idTorneo));
+        const filtros = [eq(schema.partidos.estado, 'Finalizado')];
 
         if (categoriaFiltro && categoriaFiltro !== 'Todas') {
-            query.where(eq(schema.torneos.categoria, categoriaFiltro));
+            filtros.push(eq(schema.torneos.categoria, categoriaFiltro));
         }
-        query.groupBy(schema.equipos.idEquipo)
-            .orderBy(sql`partidos_ganados DESC`);
+        if (idClasificacionFiltro && idClasificacionFiltro !== 'Todas') {
+            filtros.push(eq(schema.torneos.idClasificacion, idClasificacionFiltro));
+        }
+        if (idTorneoFiltro && idTorneoFiltro !== 'Todos') {
+            filtros.push(eq(schema.torneos.idTorneo, idTorneoFiltro));
+        }
+        query.where(and(...filtros))
+             .groupBy(schema.equipos.idEquipo)
+             .orderBy(sql`partidos_ganados DESC`);
 
-        const resultados = await query;
-        return resultados;
-
+        return await query;
     } catch (error) {
         console.error("[BACKEND ERROR] Error al generar ranking de equipos:", error);
         throw error;
     }
 };
-
-module.exports = {
-    obtenerRankingEquipos
+const obtenerTodasLasClasificaciones = async () => {
+    try {
+        return await db.select().from(schema.clasificacionEquipo);
+    } catch (error) {
+        console.error("[BACKEND ERROR] Error al obtener clasificaciones:", error);
+        throw error;
+    }
 };
+
+module.exports = { obtenerRankingEquipos, obtenerTodasLasClasificaciones };

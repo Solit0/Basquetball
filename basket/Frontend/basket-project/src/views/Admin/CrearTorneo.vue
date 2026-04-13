@@ -112,7 +112,7 @@
                 </form>
             </div>
 
-            <div class="bg-gray-100 rounded-lg shadow-inner p-4 h-fit max-h-[850px] overflow-y-auto border border-gray-200">
+            <div class="bg-gray-100 rounded-lg shadow-inner p-4 h-fit max-h-212.5 overflow-y-auto border border-gray-200">
                 <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
                     <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     Torneos Activos
@@ -229,7 +229,7 @@
                 </form>
             </div>
 
-            <div class="bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 p-6 h-fit max-h-[850px] overflow-y-auto">
+            <div class="bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 p-6 h-fit max-h-212.5 overflow-y-auto">
                 <div class="flex justify-between items-center mb-6 border-b border-indigo-100 pb-4">
                     <div>
                         <h3 class="text-xl font-bold text-indigo-900">Solicitudes de Inscripción</h3>

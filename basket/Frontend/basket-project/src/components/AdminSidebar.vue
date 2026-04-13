@@ -70,6 +70,14 @@
                     </svg>
                     Historial de Torneos
                 </button>
+                <button @click="$emit('navigate', 'estadisticas')"
+                    :class="['w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors',
+                        activeTab === 'estadisticas' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
+                    <svg class="mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 012-2h6M9 19h6m-6 0H5a2 2 0 01-2-2v-6a2 2 0 012-2h.095M9 19h6m0 0h.095M15 19V5a2 2 0 012-2h.095M18 7h.095M18 7a2 2 0 012 2v6a2 2 0 01-2 2h-.095M18 7h-.095" />
+                    </svg>
+                    Estadísticas y Rankings
+                </button>
                 <button @click="$emit('navigate', 'perfil')"
                     :class="['w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors',
                         activeTab === 'perfil' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900']">
