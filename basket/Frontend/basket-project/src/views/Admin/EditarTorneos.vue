@@ -149,7 +149,7 @@
                 </form>
             </div>
 
-            <div class="bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 p-6 h-fit max-h-[850px] overflow-y-auto">
+            <div class="bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 p-6 h-fit max-h-212.5 overflow-y-auto">
                 <div class="flex justify-between items-center mb-6 border-b border-indigo-100 pb-4">
                     <div>
                         <h3 class="text-xl font-bold text-indigo-900">Solicitudes de Inscripción</h3>

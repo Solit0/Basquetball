@@ -65,9 +65,19 @@
 
             <div v-if="campeon" class="mb-8 p-8 bg-linear-to-r from-yellow-100 via-yellow-50 to-yellow-100 border-2 border-yellow-400 rounded-2xl shadow-lg text-center animate-fade-in transform scale-100 hover:scale-105 transition-transform">
                 <span class="text-6xl block mb-4">🏆</span>
-                <h3 class="text-3xl font-black text-yellow-800 uppercase tracking-widest mb-2">¡TORNEO FINALIZADO!</h3>
+                <h3 class="text-3xl font-black text-yellow-800 uppercase tracking-widest mb-2">¡TENEMOS CAMPEÓN!</h3>
                 <p class="text-gray-700 font-medium">El campeón indiscutible de esta edición es:</p>
                 <p class="text-4xl font-black text-indigo-900 mt-2">{{ campeon.nombre_oficial }}</p>
+
+                <div class="mt-8 border-t border-yellow-300 pt-6">
+                    <p class="text-sm text-yellow-800 mb-4 font-bold">Para poder generar reportes y estadísticas, debes cerrar el torneo oficialmente.</p>
+                    <button @click="cerrarTorneo" :disabled="procesandoCierre"
+                            class="bg-red-600 hover:bg-red-700 text-white font-black py-3 px-8 rounded-full shadow-lg transition-all transform hover:scale-105 flex items-center justify-center mx-auto disabled:opacity-50">
+                        <svg v-if="!procesandoCierre" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <svg v-else class="animate-spin w-5 h-5 mr-2 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        FINALIZAR Y ARCHIVAR TORNEO
+                    </button>
+                </div>
             </div>
 
             <div v-if="Object.keys(partidosPorRonda).length > 0" class="space-y-8 animate-fade-in">
@@ -218,7 +228,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { obtenerTorneosActivosService, obtenerEquiposInscritosService } from '../../services/torneosService'
+import { obtenerTorneosActivosService, obtenerEquiposInscritosService, finalizarTorneoService } from '../../services/torneosService'
 import { guardarPartidosMultiples, obtenerPartidosPorTorneo } from '../../services/partidosService'
 import ModalResumenPartido from '../modals/ModalResumenPartido.vue'
 import { obtenerUsuariosService } from '../../services/usuarioService'
@@ -230,9 +240,9 @@ const equiposInscritos = ref([])
 const partidosOficiales = ref([])
 const partidosGenerados = ref([])
 const procesando = ref(false)
+const procesandoCierre = ref(false) 
 const listaArbitros = ref([])
 
-// 🔴 Eliminamos las variables del ModalResultadoPartido que ya no ocupamos
 const mostrarModalResumen = ref(false)
 const partidoParaResumen = ref(null)
 
@@ -273,8 +283,10 @@ const campeon = computed(() => {
 });
 
 const cargarTorneos = async () => {
-    torneos.value = await obtenerTorneosActivosService()
     try {
+        const data = await obtenerTorneosActivosService()
+        torneos.value = data.filter(t => t.estado !== 'Finalizado')
+
         const usuarios = await obtenerUsuariosService()
         const arbitros = usuarios.filter(u => u.rol === 'arbitro')
         
@@ -291,7 +303,7 @@ const cargarTorneos = async () => {
         
         listaArbitros.value = arbitrosConCalificacion
     } catch (error) {
-        console.error("Error al cargar árbitros:", error)
+        console.error("Error al cargar torneos y árbitros:", error)
     }
 }
 
@@ -453,6 +465,20 @@ const guardarCalendario = async () => {
 const abrirModalResumen = (partido) => {
     partidoParaResumen.value = partido
     mostrarModalResumen.value = true
+}
+const cerrarTorneo = async () => {
+    if(!confirm("¿Estás seguro de finalizar y archivar este torneo? Desaparecerá de esta vista y pasará al Historial de Reportes.")) return;
+    
+    procesandoCierre.value = true;
+    try {
+        await finalizarTorneoService(torneoSeleccionado.value.id_torneo);
+        alert("Torneo archivado exitosamente.");
+        volver(); // Llama a la función volver para limpiar y recargar la vista principal
+    } catch (error) {
+        alert(error.response?.data?.error || "Error al intentar cerrar el torneo.");
+    } finally {
+        procesandoCierre.value = false;
+    }
 }
 
 onMounted(cargarTorneos)

@@ -1,5 +1,4 @@
-import { api } from '../Enviroments/enviroment' // Asegúrate de que la ruta de 'api' sea correcta
-
+import { api } from '../Enviroments/enviroment' 
 export const obtenerTorneosAsignadosService = async (idArbitro) => {
     const response = await api.get(`/arbitros/${idArbitro}/torneos`);
     return response.data;

@@ -1,7 +1,7 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, ne, notInArray, desc, sql, count } = require('drizzle-orm');
-
+const { eq, and, ne, notInArray, desc, sql, count, asc } = require('drizzle-orm');
+const { alias } = require('drizzle-orm/pg-core');
 const crearTorneo = async (datosTorneo) => {
     const { nombre_torneo, descripcion, categoria, fecha_inicio, fecha_fin, numero_equipos, id_clasificacion, reglamento } = datosTorneo;
     if (numero_equipos > 32) throw new Error('El límite máximo de equipos permitidos por torneo es 32.');
@@ -27,7 +27,7 @@ const crearTorneo = async (datosTorneo) => {
         })
         .returning();
         
-    return rows[0];
+    return rows[0];  
 };
 const quitarEquipo = async (id_torneo, id_equipo) => {
     return await db.transaction(async (tx) => {
@@ -390,7 +390,102 @@ const obtenerTorneosDeEntrenador = async (id_entrenador) => {
 
     return rows;
 };
+const finalizarTorneoService = async (id_torneo) => {
+    try {
+        const [torneoActualizado] = await db.update(schema.torneos)
+            .set({ estado: 'Finalizado' })
+            .where(eq(schema.torneos.idTorneo, id_torneo))
+            .returning();
+            
+        if (!torneoActualizado) {
+            throw new Error('No se pudo finalizar el torneo o no existe.');
+        }
+        
+        return torneoActualizado;
+    } catch (error) {
+        console.error("[BACKEND ERROR] Error finalizando torneo:", error);
+        throw error;
+    }
+};
 
+const obtenerDatosReporteTorneo = async (id_torneo) => {
+    try {
+        console.log(`\n[SERVICE] Iniciando recopilación de datos para torneo: ${id_torneo}`);
+        
+        const infoTorneo = await db.select()
+            .from(schema.torneos)
+            .where(eq(schema.torneos.idTorneo, id_torneo))
+            .limit(1);
+
+        if (infoTorneo.length === 0) {
+            console.log(`[SERVICE] No se encontró el torneo en la base de datos.`);
+            throw new Error('Torneo no encontrado');
+        }
+        
+        const torneoData = infoTorneo[0];
+        console.log(`✔️ [SERVICE] Info del torneo obtenida correctamente: ${torneoData.nombreTorneo}`);
+        const equiposLocal = alias(schema.equipos, 'equipoLocal');
+        const equiposVisitante = alias(schema.equipos, 'equipoVisitante');
+
+        const partidos = await db.select({
+            ronda: schema.partidos.rondaTorneo,
+            fecha: schema.partidos.fecha,
+            hora: schema.partidos.hora,
+            estado: schema.partidos.estado,
+            local: equiposLocal.nombreOficial,
+            marcador_local: schema.partidos.marcadorLocal,
+            visitante: equiposVisitante.nombreOficial,
+            marcador_visitante: schema.partidos.marcadorVisitante,
+        })
+        .from(schema.partidos)
+        .leftJoin(equiposLocal, eq(schema.partidos.idEquipoLocal, equiposLocal.idEquipo))
+        .leftJoin(equiposVisitante, eq(schema.partidos.idEquipoVisitante, equiposVisitante.idEquipo))
+        .where(eq(schema.partidos.idTorneo, id_torneo))
+        .orderBy(asc(schema.partidos.fecha)); 
+
+        console.log(`✔️ [SERVICE] Partidos extraídos exitosamente: ${partidos.length} encontrados.`);
+
+        let campeon = "Por definir";
+        let subcampeon = "Por definir";
+        const partidoFinal = partidos.find(p => p.ronda && p.ronda.toLowerCase().includes('final') && p.estado === 'Finalizado');
+        
+        if (partidoFinal) {
+            if (partidoFinal.marcador_local > partidoFinal.marcador_visitante) {
+                campeon = partidoFinal.local;
+                subcampeon = partidoFinal.visitante;
+            } else if (partidoFinal.marcador_visitante > partidoFinal.marcador_local) {
+                campeon = partidoFinal.visitante;
+                subcampeon = partidoFinal.local;
+            } else {
+                campeon = "Empate Técnico";
+                subcampeon = "Empate Técnico";
+            }
+        }
+
+        console.log(` [SERVICE] Campeón calculado: ${campeon} | Subcampeón: ${subcampeon}`);
+
+        return {
+            torneo: {
+                nombre: torneoData.nombreTorneo,
+                categoria: torneoData.categoria,
+                fecha_inicio: torneoData.fechaInicio,
+                fecha_fin: torneoData.fechaFin,
+                estado: torneoData.estado
+            },
+            resultados: {
+                campeon: campeon,
+                subcampeon: subcampeon
+            },
+            historial_partidos: partidos
+        };
+
+    } catch (error) {
+        console.error("[SERVICE ERROR] Falló la consulta Drizzle en obtenerDatosReporteTorneo:");
+        console.error("- Detalle:", error.message);
+        if(error.cause) console.error("- Causa:", error.cause.message);
+        throw error;
+    }
+};
 module.exports = { 
     crearTorneo, 
     editarTorneo, 
@@ -403,5 +498,7 @@ module.exports = {
     obtenerEquiposElegibles, 
     inscribirEquipo, 
     obtenerEquiposInscritos, 
-    obtenerTorneosDeEntrenador 
+    obtenerTorneosDeEntrenador,
+    finalizarTorneoService,
+    obtenerDatosReporteTorneo 
 };

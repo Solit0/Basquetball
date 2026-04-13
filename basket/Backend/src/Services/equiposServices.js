@@ -30,9 +30,8 @@ const obtenerJugadoresPorEquipo = async (id_equipo) => {
             fecha_nacimiento: schema.jugadores.fechaNacimiento,
             posicion: schema.jugadores.posicion,
             estatura: schema.jugadores.estatura,
-            activo: schema.plantillaEquipo.activo, // Solo pedimos activo, lo demás ya no vive aquí
+            activo: schema.plantillaEquipo.activo,
             
-            // EL DOBLE CHEQUEO DISCIPLINARIO GLOBAL
             suspendido_db: sql`EXISTS (
                 SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
                 INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
@@ -43,7 +42,42 @@ const obtenerJugadoresPorEquipo = async (id_equipo) => {
                 SELECT 1 FROM ${schema.sanciones} s2
                 WHERE s2.id_jugador = ${schema.jugadores.idJugador}
                   AND s2.estado_resolucion = 'Pendiente'
-            )`.mapWith(Boolean) // Eliminamos el .as() extra para evitar problemas con Drizzle
+            )`.mapWith(Boolean).as('suspendido_db'),
+            
+            detalle_sancion_motivo: sql`(
+                SELECT s.tipo_sancion 
+                FROM ${schema.sanciones} s
+                LEFT JOIN ${schema.resolucionesDisciplinarias} rd ON s.id_sancion = rd.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND (s.estado_resolucion = 'Pendiente' OR (rd.estado = 'Activa' AND rd.partidos_suspension > rd.partidos_cumplidos))
+                LIMIT 1
+            )`.mapWith(String).as('detalle_sancion_motivo'),
+
+            detalle_sancion_partidos: sql`(
+                SELECT (rd.partidos_suspension - rd.partidos_cumplidos)::int
+                FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND rd.estado = 'Activa'
+                LIMIT 1
+            )`.mapWith(Number).as('detalle_sancion_partidos'),
+            detalle_monto_multa: sql`(
+                SELECT rd.monto_multa
+                FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND rd.estado = 'Activa'
+                LIMIT 1
+            )`.mapWith(Number).as('detalle_monto_multa'),
+            
+            detalle_multa_pagada: sql`(
+                SELECT rd.multa_pagada
+                FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND rd.estado = 'Activa'
+                LIMIT 1
+            )`.mapWith(Boolean).as('detalle_multa_pagada')
 
         })
         .from(schema.jugadores)
@@ -55,23 +89,28 @@ const obtenerJugadoresPorEquipo = async (id_equipo) => {
             )
         );
 
-        return rows.map(r => ({
-            id_jugador: r.id_jugador,
-            nombre: r.nombre,
-            apellido: r.apellido,
-            fecha_nacimiento: r.fecha_nacimiento,
-            posicion: r.posicion,
-            estatura: r.estatura,
-            activo: r.activo,
-            
-            // Rellenamos con nulos para que el Frontend no se queje
-            numero_camiseta: null,
-            rol_equipo: 'N/A',
-            es_capitan: false,
-            
-            // Transformamos el booleano puro
-            esta_suspendido: !!r.suspendido_db 
-        }));
+        return rows.map(r => {
+            const estaSancionado = !!r.suspendido_db;
+            const partidosPendientes = parseInt(r.detalle_sancion_partidos) || 0;
+            const motivo = r.detalle_sancion_motivo || 'Pendiente de revisión';
+            return {
+                id_jugador: r.id_jugador,
+                nombre: r.nombre,
+                apellido: r.apellido,
+                fecha_nacimiento: r.fecha_nacimiento,
+                posicion: r.posicion,
+                estatura: r.estatura,
+                activo: r.activo,
+                numero_camiseta: null,
+                rol_equipo: 'N/A',
+                es_capitan: false,
+                esta_suspendido: estaSancionado,
+                sancion_motivo: motivo,
+                partidos_restantes: partidosPendientes,
+                monto_multa: parseFloat(r.detalle_monto_multa) || 0,
+                multa_pagada: r.detalle_multa_pagada === true
+            };
+        });
 
     } catch (error) {
         console.error(`[BACKEND ERROR] Falló la consulta SQL en obtenerJugadoresPorEquipo:`, error);

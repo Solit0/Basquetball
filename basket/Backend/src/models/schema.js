@@ -225,6 +225,7 @@ const alineaciones = pgTable("alineaciones", {
     puntosAnotados: integer("puntos_anotados").default(0),
     faltasCometidas: integer("faltas_cometidas").default(0),
     rolPartido: varchar("rol_partido", { length: 20 }).default('Suplente'),
+    esCapitanInterino: boolean("es_capitan_interino").default(false),
 }, (table) => [
     foreignKey({ columns: [table.idEquipo], foreignColumns: [equipos.idEquipo], name: "alineaciones_id_equipo_fkey" }),
     foreignKey({ columns: [table.idJugador], foreignColumns: [jugadores.idJugador], name: "alineaciones_id_jugador_fkey" }),
@@ -322,6 +323,7 @@ const asistenciaPartidos = pgTable("asistencia_partidos", {
     idPartido: uuid("id_partido").notNull(),
     idRoster: uuid("id_roster").notNull(), 
     estado: varchar("estado", { length: 20 }).default('Ausente'),
+    esCapitanInterino: boolean("es_capitan_interino").default(false),
 }, (table) => [
     foreignKey({ columns: [table.idRoster], foreignColumns: [rosterTorneo.idRoster], name: "asistencia_partidos_id_roster_fkey" }).onDelete("cascade"),
     foreignKey({ columns: [table.idPartido], foreignColumns: [partidos.idPartido], name: "asistencia_partidos_id_partido_fkey" }).onDelete("cascade"),
@@ -355,6 +357,7 @@ const resolucionesDisciplinarias = pgTable("resoluciones_disciplinarias", {
     estado: varchar("estado").default('Activa'),
     observacionesAdmin: text("observaciones_admin"),
     fechaResolucion: timestamp("fecha_resolucion", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+    multaPagada: boolean("multa_pagada").default(false),
 }, (table) => [
     foreignKey({
         columns: [table.idSancion],

@@ -39,17 +39,40 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="player in players" :key="player.id_jugador" 
                             class="transition-colors"
-                            :class="player.esta_suspendido ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'">
+                            :class="{
+                                'bg-red-50 hover:bg-red-100': player.esta_suspendido,
+                                'bg-amber-50 hover:bg-amber-100': !player.esta_suspendido && player.monto_multa > 0 && !player.multa_pagada,
+                                'hover:bg-gray-50': !player.esta_suspendido && !(player.monto_multa > 0 && !player.multa_pagada)
+                            }">
                             
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <span class="text-sm font-bold" :class="player.esta_suspendido ? 'text-red-900' : 'text-gray-900'">
-                                        {{ player.nombre }} {{ player.apellido }}
-                                    </span>
-                                    <span v-if="player.esta_suspendido" class="ml-2 flex items-center bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-sm uppercase tracking-wider">
-                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                        Sancionado
-                                    </span>
+                                <div class="flex flex-col">
+                                    <div class="flex items-center">
+                                        <span class="text-sm font-bold" :class="player.esta_suspendido ? 'text-red-900 line-through' : 'text-gray-900'">
+                                            {{ player.nombre }} {{ player.apellido }}
+                                        </span>
+                                        <span v-if="player.esta_suspendido" class="ml-2 flex items-center bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-sm uppercase tracking-wider">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                            Inhabilitado
+                                        </span>
+                                    </div>
+                                    
+                                    <div v-if="player.esta_suspendido || (player.monto_multa > 0 && !player.multa_pagada)" class="mt-1.5 flex flex-col gap-1">
+                                        <span v-if="!player.esta_suspendido && player.monto_multa > 0 && !player.multa_pagada" class="flex items-center text-amber-600 text-[10px] font-black uppercase tracking-wider">
+                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                            MULTA PENDIENTE
+                                        </span>
+
+                                        <span v-if="player.partidos_restantes > 0" class="text-[9px] font-bold text-red-800 bg-red-100 border border-red-200 px-1.5 py-0.5 rounded inline-block w-fit line-clamp-1" :title="player.sancion_motivo">
+                                            Faltan {{ player.partidos_restantes }} partidos ({{ player.sancion_motivo }})
+                                        </span>
+                                        <span v-if="player.monto_multa > 0 && !player.multa_pagada" class="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded inline-block w-fit line-clamp-1" :title="player.sancion_motivo">
+                                            Deuda: ${{ player.monto_multa }} ({{ player.sancion_motivo }})
+                                        </span>
+                                        <span v-if="player.esta_suspendido && player.partidos_restantes === 0" class="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded inline-block w-fit line-clamp-1" :title="player.sancion_motivo">
+                                            Bajo revisión del Tribunal ({{ player.sancion_motivo }})
+                                        </span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -107,7 +130,6 @@
 import { ref, onMounted, watch } from 'vue'
 import ModalAgregarJugador from '../ModalAgregarJugador.vue' 
 import { 
-     
     crearJugadorService, 
     actualizarJugadorService, 
     eliminarJugadorService,
@@ -115,6 +137,7 @@ import {
     vincularJugadorService
 } from '../../services/jugadoresService'
 import { obtenerJugadoresPorEquipoService } from '@/services/equiposService'
+
 const props = defineProps({
     equipo: {
         type: Object,
@@ -138,6 +161,20 @@ const cargarJugadores = async () => {
     try {
         const data = await obtenerJugadoresPorEquipoService(props.equipo.id_equipo);
         players.value = data; 
+        
+        // LOG FRONTEND PARA DEPURAR DEUDAS Y SANCIONES
+        const penalizados = data.filter(j => j.esta_suspendido || (j.monto_multa > 0 && !j.multa_pagada));
+        if(penalizados.length > 0) {
+            console.log("🚨 [FRONTEND] DIRECTORIO GLOBAL: Jugadores con anomalías ->", penalizados.map(j => ({
+                nombre: `${j.nombre} ${j.apellido}`,
+                suspendido: j.esta_suspendido,
+                partidos: j.partidos_restantes,
+                multa: j.monto_multa,
+                pagada: j.multa_pagada,
+                motivo: j.sancion_motivo
+            })));
+        }
+
     } catch (error) {
         console.error('Error al cargar jugadores:', error)
     } finally {
@@ -192,7 +229,7 @@ const savePlayer = async (payload) => {
             alert('Nuevo jugador registrado correctamente')
         }
         await cargarJugadores()
-        emit('cambio-jugadores') // Avisa al Dashboard para que actualice la tarjeta de "Jugadores Registrados"
+        emit('cambio-jugadores') 
         closePlayerModal()
     } catch (error) {
         alert(error.response?.data?.error || 'Error al procesar el jugador')
@@ -216,7 +253,6 @@ const eliminarJugador = async (player) => {
     }
 }
 
-// Si el equipo se carga con delay en el dashboard, escuchamos el cambio
 watch(() => props.equipo, (newVal) => {
     if (newVal) cargarJugadores()
 })

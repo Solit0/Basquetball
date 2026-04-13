@@ -12,7 +12,9 @@
                     <EditarTorneos v-if="activeTab === 'gestion-torneos'" class="animate-fade-in" />
                     <AdminPerfil v-if="activeTab === 'perfil'" @perfil-actualizado="actualizarNombreNavBar" class="animate-fade-in" />
                     <CalendarioPartidos v-if="activeTab === 'calendario'" :esAdmin="true" class="animate-fade-in" />
-                    
+                    <Resoluciones v-if="activeTab === 'resoluciones'" class="animate-fade-in" />
+                    <HistorialResoluciones v-if="activeTab === 'historial-resoluciones'" class="animate-fade-in" />
+                    <HistorialTorneos v-if="activeTab === 'historial-torneos'" class="animate-fade-in" />
                 </div>
             </main>
         </div>
@@ -29,6 +31,9 @@ import GestionPartidos from './Admin/GestionPartidos.vue'
 import EditarTorneos from './Admin/EditarTorneos.vue'
 import AdminPerfil from './Admin/AdminPerfil.vue'
 import CalendarioPartidos from './Espectadores/CalendarioPartidos.vue'
+import Resoluciones from './Admin/Resoluciones.vue'
+import HistorialResoluciones from './Admin/HistorialResoluciones.vue'
+import HistorialTorneos from './Admin/HistorialTorneos.vue'
 const activeTab = ref('canales') 
 const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || '{}')
 const userName = ref(usuarioGuardado.nombre || 'Administrador')

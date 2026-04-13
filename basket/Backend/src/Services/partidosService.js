@@ -221,7 +221,6 @@ const obtenerResumenPartido = async (id_partido) => {
         informe: resInforme.length > 0 ? resInforme[0].contenido : 'No se redactó informe.'
     };
 };
-
 const finalizarPartido = async (id_partido, datosResultado) => {
     const { 
         marcador_local, marcador_visitante, id_arbitro, 
@@ -273,7 +272,6 @@ const finalizarPartido = async (id_partido, datosResultado) => {
             }
 
             if (sanciones && sanciones.length > 0) {
-                
                 const tiposValidos = [
                     'Conducta Antideportiva', 
                     'Agresión Física', 
@@ -296,27 +294,6 @@ const finalizarPartido = async (id_partido, datosResultado) => {
                     };
                 });
                 await tx.insert(schema.sanciones).values(sancionesData);
-                for (const san of sancionesData) {
-                    const rosterInfo = await tx.select({ id_roster: schema.rosterTorneo.idRoster })
-                        .from(schema.rosterTorneo)
-                        .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
-                        .where(
-                            and(
-                                eq(schema.rosterTorneo.idJugador, san.idJugador),
-                                eq(schema.inscripciones.idTorneo, id_torneo)
-                            )
-                        )
-                        .limit(1);
-
-                    if (rosterInfo.length > 0) {
-                        await tx.update(schema.rosterTorneo)
-                            .set({ 
-                                rolRoster: 'Suplente', 
-                                esCapitan: false 
-                            })
-                            .where(eq(schema.rosterTorneo.idRoster, rosterInfo[0].id_roster));
-                    }
-                }
             }
 
             if (puntos_jugadores && puntos_jugadores.length > 0) {
@@ -353,7 +330,45 @@ const finalizarPartido = async (id_partido, datosResultado) => {
                 }
             }
 
-            return { mensaje: 'Partido finalizado, informe guardado, castigos preventivos aplicados y perdedor eliminado.' };
+            const rostersParticipantes = await tx.select({
+                id_jugador: schema.rosterTorneo.idJugador
+            })
+            .from(schema.rosterTorneo)
+            .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
+            .where(
+                and(
+                    eq(schema.inscripciones.idTorneo, id_torneo),
+                    inArray(schema.inscripciones.idEquipo, [id_equipo_local, id_equipo_visitante])
+                )
+            );
+
+            const idsJugadoresRoster = rostersParticipantes.map(r => r.id_jugador);
+
+            if (idsJugadoresRoster.length > 0) {
+                const resolucionesActivas = await tx.select({
+                    id_resolucion: schema.resolucionesDisciplinarias.idResolucion,
+                    partidos_cumplidos: schema.resolucionesDisciplinarias.partidosCumplidos,
+                    partidos_suspension: schema.resolucionesDisciplinarias.partidosSuspension
+                })
+                .from(schema.resolucionesDisciplinarias)
+                .innerJoin(schema.sanciones, eq(schema.resolucionesDisciplinarias.idSancion, schema.sanciones.idSancion))
+                .where(
+                    and(
+                        eq(schema.resolucionesDisciplinarias.estado, 'Activa'),
+                        eq(schema.sanciones.idTorneo, id_torneo),
+                        inArray(schema.sanciones.idJugador, idsJugadoresRoster)
+                    )
+                );
+                for (const res of resolucionesActivas) {
+                    if (res.partidos_cumplidos < res.partidos_suspension) {
+                        await tx.update(schema.resolucionesDisciplinarias)
+                            .set({ partidosCumplidos: res.partidos_cumplidos + 1 })
+                            .where(eq(schema.resolucionesDisciplinarias.idResolucion, res.id_resolucion));
+                    }
+                }
+            }
+
+            return { mensaje: 'Partido finalizado, informe guardado, estadísticas y sanciones actualizadas.' };
         });
     } catch (error) {
         console.error("Mensaje principal:", error.message);

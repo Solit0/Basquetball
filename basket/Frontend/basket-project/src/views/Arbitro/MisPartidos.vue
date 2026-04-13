@@ -182,20 +182,60 @@
                             
                             <ul v-else class="space-y-2 pr-2">
                                 <li v-for="j in jugadoresLocal" :key="j.id_jugador" 
-                                    class="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white p-3 rounded-lg border border-gray-200 shadow-sm transition-colors"
-                                    :class="{'border-l-4 border-l-green-500': j.estado_asistencia === 'Presente', 'border-l-4 border-l-red-500': j.estado_asistencia === 'Inhabilitado'}">
+                                    class="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white p-3 rounded-lg border shadow-sm transition-colors"
+                                    :class="{
+                                        'border-l-4 border-l-green-500 border-gray-200': j.estado_asistencia === 'Presente', 
+                                        'border-l-4 border-l-red-500 bg-red-50/50': j.estado_asistencia === 'Inhabilitado',
+                                        'border-l-4 border-l-gray-400 border-gray-200': j.estado_asistencia === 'Ausente',
+                                        'bg-amber-50/50 border-gray-200': !j.esta_suspendido && j.monto_multa > 0 && !j.multa_pagada && j.estado_asistencia === 'Pendiente',
+                                        'border-gray-200': j.estado_asistencia === 'Pendiente' && !j.esta_suspendido && !(j.monto_multa > 0 && !j.multa_pagada)
+                                    }">
                                     
                                     <div class="flex items-center mb-2 sm:mb-0">
-                                        <span class="w-7 h-7 flex items-center justify-center font-black text-amber-700 bg-amber-100 rounded-full text-xs mr-3 shrink-0">
+                                        <span class="w-7 h-7 flex items-center justify-center font-black rounded-full text-xs mr-3 shrink-0"
+                                            :class="{
+                                                'bg-red-100 text-red-700': j.esta_suspendido,
+                                                'bg-amber-100 text-amber-700': !j.esta_suspendido && j.monto_multa > 0 && !j.multa_pagada,
+                                                'bg-gray-200 text-gray-600': !j.esta_suspendido && !(j.monto_multa > 0 && !j.multa_pagada)
+                                            }">
                                             {{ j.numero_camiseta || '-' }}
                                         </span>
-                                        <span class="font-medium text-gray-900 truncate" :class="{'line-through text-gray-400': j.estado_asistencia === 'Inhabilitado'}">
-                                            {{ j.nombre }} {{ j.apellido }}
-                                        </span>
-                                        <span v-if="j.es_capitan" class="ml-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" title="Capitán">©</span>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium truncate" :class="{'line-through text-gray-400': j.esta_suspendido, 'text-gray-900': !j.esta_suspendido}">
+                                                {{ j.nombre }} {{ j.apellido }}
+                                                <span v-if="j.es_capitan" class="ml-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" title="Capitán Oficial">©</span>
+                                                <span v-if="j.es_capitan_interino" class="ml-1 px-1.5 py-0.5 bg-orange-400 text-white text-[9px] font-black rounded shadow-sm border border-orange-500 shrink-0" title="Capitán Interino (Asignado hoy)">© Int</span>
+                                            </span>
+                                            
+                                            <div v-if="j.esta_suspendido || (j.monto_multa > 0 && !j.multa_pagada)" class="flex flex-col gap-1 mt-1">
+                                                <span v-if="j.esta_suspendido" class="text-red-600 text-[10px] font-black uppercase flex items-center tracking-wider">
+                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                                    INHABILITADO
+                                                </span>
+                                                <span v-else-if="j.monto_multa > 0 && !j.multa_pagada" class="text-amber-600 text-[10px] font-black uppercase flex items-center tracking-wider">
+                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                                    MULTA PENDIENTE
+                                                </span>
+
+                                                <span v-if="j.partidos_restantes > 0" class="text-[9px] font-bold text-red-800 bg-red-100 border border-red-200 px-1.5 py-0.5 rounded w-fit line-clamp-1" :title="j.sancion_motivo">
+                                                    Faltan {{ j.partidos_restantes }} partidos ({{ j.sancion_motivo }})
+                                                </span>
+                                                <span v-if="j.monto_multa > 0 && !j.multa_pagada" class="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded w-fit line-clamp-1" :title="j.sancion_motivo">
+                                                    Deuda: ${{ j.monto_multa }} ({{ j.sancion_motivo }})
+                                                </span>
+                                                <span v-if="j.esta_suspendido && j.partidos_restantes === 0" class="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded w-fit line-clamp-1" :title="j.sancion_motivo">
+                                                    Bajo revisión ({{ j.sancion_motivo || 'Reporte arbitral' }})
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div v-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" class="flex bg-gray-100 p-1 rounded-md shrink-0">
+                                    <div v-if="j.esta_suspendido" class="flex bg-red-50 border border-red-200 p-1 rounded-md shrink-0 select-none items-center justify-center min-w-25">
+                                        <span class="px-2 py-1 text-[10px] font-black text-red-700 uppercase tracking-widest flex items-center">
+                                            🚫 SUSPENDIDO
+                                        </span>
+                                    </div>
+                                    <div v-else-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" class="flex bg-gray-100 p-1 rounded-md shrink-0">
                                         <button @click="cambiarAsistencia(j, 'Presente')" :disabled="cargandoAsistencia"
                                                 :class="j.estado_asistencia === 'Presente' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'"
                                                 class="px-3 py-1 text-xs font-bold rounded transition-colors w-10">P</button>
@@ -228,20 +268,60 @@
                             
                             <ul v-else class="space-y-2 pr-2">
                                 <li v-for="j in jugadoresVisitante" :key="j.id_jugador" 
-                                    class="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white p-3 rounded-lg border border-gray-200 shadow-sm transition-colors"
-                                    :class="{'border-l-4 border-l-green-500': j.estado_asistencia === 'Presente', 'border-l-4 border-l-red-500': j.estado_asistencia === 'Inhabilitado'}">
+                                    class="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white p-3 rounded-lg border shadow-sm transition-colors"
+                                    :class="{
+                                        'border-l-4 border-l-green-500 border-gray-200': j.estado_asistencia === 'Presente', 
+                                        'border-l-4 border-l-red-500 bg-red-50/50': j.estado_asistencia === 'Inhabilitado',
+                                        'border-l-4 border-l-gray-400 border-gray-200': j.estado_asistencia === 'Ausente',
+                                        'bg-amber-50/50 border-gray-200': !j.esta_suspendido && j.monto_multa > 0 && !j.multa_pagada && j.estado_asistencia === 'Pendiente',
+                                        'border-gray-200': j.estado_asistencia === 'Pendiente' && !j.esta_suspendido && !(j.monto_multa > 0 && !j.multa_pagada)
+                                    }">
                                     
                                     <div class="flex items-center mb-2 sm:mb-0">
-                                        <span class="w-7 h-7 flex items-center justify-center font-black text-gray-600 bg-gray-200 rounded-full text-xs mr-3 shrink-0">
+                                        <span class="w-7 h-7 flex items-center justify-center font-black rounded-full text-xs mr-3 shrink-0"
+                                            :class="{
+                                                'bg-red-100 text-red-700': j.esta_suspendido,
+                                                'bg-amber-100 text-amber-700': !j.esta_suspendido && j.monto_multa > 0 && !j.multa_pagada,
+                                                'bg-gray-200 text-gray-600': !j.esta_suspendido && !(j.monto_multa > 0 && !j.multa_pagada)
+                                            }">
                                             {{ j.numero_camiseta || '-' }}
                                         </span>
-                                        <span class="font-medium text-gray-900 truncate" :class="{'line-through text-gray-400': j.estado_asistencia === 'Inhabilitado'}">
-                                            {{ j.nombre }} {{ j.apellido }}
-                                        </span>
-                                        <span v-if="j.es_capitan" class="ml-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" title="Capitán">©</span>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium truncate" :class="{'line-through text-gray-400': j.esta_suspendido, 'text-gray-900': !j.esta_suspendido}">
+                                                {{ j.nombre }} {{ j.apellido }}
+                                                <span v-if="j.es_capitan" class="ml-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded shadow-sm border border-yellow-500 shrink-0" title="Capitán Oficial">©</span>
+                                                <span v-if="j.es_capitan_interino" class="ml-1 px-1.5 py-0.5 bg-orange-400 text-white text-[9px] font-black rounded shadow-sm border border-orange-500 shrink-0" title="Capitán Interino (Asignado hoy)">© Int</span>
+                                            </span>
+                                            
+                                            <div v-if="j.esta_suspendido || (j.monto_multa > 0 && !j.multa_pagada)" class="flex flex-col gap-1 mt-1">
+                                                <span v-if="j.esta_suspendido" class="text-red-600 text-[10px] font-black uppercase flex items-center tracking-wider">
+                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                                    INHABILITADO
+                                                </span>
+                                                <span v-else-if="j.monto_multa > 0 && !j.multa_pagada" class="text-amber-600 text-[10px] font-black uppercase flex items-center tracking-wider">
+                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                                    MULTA PENDIENTE
+                                                </span>
+
+                                                <span v-if="j.partidos_restantes > 0" class="text-[9px] font-bold text-red-800 bg-red-100 border border-red-200 px-1.5 py-0.5 rounded w-fit line-clamp-1" :title="j.sancion_motivo">
+                                                    Faltan {{ j.partidos_restantes }} partidos ({{ j.sancion_motivo }})
+                                                </span>
+                                                <span v-if="j.monto_multa > 0 && !j.multa_pagada" class="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded w-fit line-clamp-1" :title="j.sancion_motivo">
+                                                    Deuda: ${{ j.monto_multa }} ({{ j.sancion_motivo }})
+                                                </span>
+                                                <span v-if="j.esta_suspendido && j.partidos_restantes === 0" class="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded w-fit line-clamp-1" :title="j.sancion_motivo">
+                                                    Bajo revisión ({{ j.sancion_motivo || 'Reporte arbitral' }})
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div v-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" class="flex bg-gray-100 p-1 rounded-md shrink-0">
+                                    <div v-if="j.esta_suspendido" class="flex bg-red-50 border border-red-200 p-1 rounded-md shrink-0 select-none items-center justify-center min-w-25">
+                                        <span class="px-2 py-1 text-[10px] font-black text-red-700 uppercase tracking-widest flex items-center">
+                                            🚫 SUSPENDIDO
+                                        </span>
+                                    </div>
+                                    <div v-else-if="partidoDetalle?.rol_arbitral === 'Principal' && partidoDetalle?.estado !== 'En Juego' && partidoDetalle?.estado !== 'Finalizado'" class="flex bg-gray-100 p-1 rounded-md shrink-0">
                                         <button @click="cambiarAsistencia(j, 'Presente')" :disabled="cargandoAsistencia"
                                                 :class="j.estado_asistencia === 'Presente' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'"
                                                 class="px-3 py-1 text-xs font-bold rounded transition-colors w-10">P</button>
@@ -344,6 +424,7 @@ import {
     marcarAsistenciaJugadorService,
     iniciarPartidoService
 } from '../../services/arbitrosService.js' 
+
 const mostrarModalResultado = ref(false)
 const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || '{}')
 const idArbitroActual = ref(usuarioGuardado.id_usuario || 1)
@@ -366,22 +447,23 @@ const tituloVista = computed(() => {
     if (viewMode.value === 'partidos') return `Partidos Programados`
     if (viewMode.value === 'detalle') return 'Ficha Técnica'
 })
+
 const abrirModalResultado = () => {
-    
     if (partidoDetalle.value?.rol_arbitral !== 'Principal') {
         alert("Solo el Árbitro Principal puede llenar el acta final del encuentro.");
         return;
     }
     mostrarModalResultado.value = true
 }
+
 onMounted(() => {
     cargarTorneos()
 })
+
 const cerrarModalYRecargar = async (guardadoExitoso = false) => {
     mostrarModalResultado.value = false;
     
     if (guardadoExitoso) {
-        // Si el modal emitió un 'true', recargamos los datos reales desde la BD
         try {
             const detalleActualizado = await obtenerDetallePartidoService(idArbitroActual.value, partidoDetalle.value.id_partido);
             partidoDetalle.value = detalleActualizado;
@@ -390,12 +472,12 @@ const cerrarModalYRecargar = async (guardadoExitoso = false) => {
             console.error("Error recargando la vista tras finalizar partido", error);
         }
     } else {
-        // Si el árbitro cerró el modal sin guardar (Cancelar), revertimos el estado a "En Juego"
         partidoDetalle.value.estado = 'En Juego';
         const idx = partidos.value.findIndex(p => p.id_partido === partidoDetalle.value.id_partido);
         if(idx !== -1) partidos.value[idx].estado = 'En Juego';
     }
 }
+
 const cargarTorneos = async () => {
     try {
         if (idArbitroActual.value) {
@@ -415,17 +497,16 @@ const seleccionarTorneo = async (torneo) => {
         console.error("Error cargando partidos", error)
     }
 }
+
 const prepararFinalizacion = () => {
     if (partidoDetalle.value?.rol_arbitral !== 'Principal') return;
 
     if (!confirm('¿Estás seguro de pitar el final del partido? Se abrirá el acta oficial para registrar los resultados definitivos.')) return;
 
-    // Cambiamos el estado localmente para la UI
     partidoDetalle.value.estado = 'Finalizado';
     const idx = partidos.value.findIndex(p => p.id_partido === partidoDetalle.value.id_partido);
     if(idx !== -1) partidos.value[idx].estado = 'Finalizado';
 
-    // Abrimos el modal automáticamente
     mostrarModalResultado.value = true;
 }
 
@@ -434,8 +515,13 @@ const seleccionarPartido = async (partido) => {
     try {
         const detalle = await obtenerDetallePartidoService(idArbitroActual.value, partido.id_partido)
         partidoDetalle.value = detalle
-        jugadoresLocal.value = await obtenerAlineacionPartidoService(partido.id_partido, detalle.id_local)
-        jugadoresVisitante.value = await obtenerAlineacionPartidoService(partido.id_partido, detalle.id_visitante)
+        
+        let local = await obtenerAlineacionPartidoService(partido.id_partido, detalle.id_local)
+        let visitante = await obtenerAlineacionPartidoService(partido.id_partido, detalle.id_visitante)
+
+        jugadoresLocal.value = local;
+        jugadoresVisitante.value = visitante;
+        
         viewMode.value = 'detalle'
     } catch (error) {
         console.error("Error cargando detalle o alineaciones", error)
@@ -443,10 +529,13 @@ const seleccionarPartido = async (partido) => {
 }
 
 const cambiarAsistencia = async (jugador, nuevoEstado) => {
-    // Seguridad extra en el script: Si no es el Principal, no hacemos nada
     if (partidoDetalle.value?.rol_arbitral !== 'Principal') return;
-
     if (jugador.estado_asistencia === nuevoEstado) return; 
+
+    if (jugador.esta_suspendido) {
+        return alert("Este jugador está legalmente inhabilitado para jugar por resolución del Tribunal o reporte preventivo.");
+    }
+
     cargandoAsistencia.value = true;
     const estadoAnterior = jugador.estado_asistencia; 
     jugador.estado_asistencia = nuevoEstado; 
@@ -462,7 +551,6 @@ const cambiarAsistencia = async (jugador, nuevoEstado) => {
 }
 
 const marcarListoParaJugar = async () => {
-    // Seguridad extra en el script
     if (partidoDetalle.value?.rol_arbitral !== 'Principal') return;
 
     const faltanLocal = jugadoresLocal.value.some(j => j.estado_asistencia === 'Pendiente');
@@ -477,12 +565,12 @@ const marcarListoParaJugar = async () => {
     if (presentesLocal.length < 5) return alert(`EQUIPO INCOMPLETO:\n\nEl equipo Local solo tiene ${presentesLocal.length} jugador(es) presente(s).`);
     if (presentesVisitante.length < 5) return alert(`EQUIPO INCOMPLETO:\n\nEl equipo Visitante solo tiene ${presentesVisitante.length} jugador(es) presente(s).`);
 
-    const capitanLocal = presentesLocal.some(j => j.es_capitan);
-    const capitanVisitante = presentesVisitante.some(j => j.es_capitan);
+    const capitanLocal = presentesLocal.some(j => j.es_capitan || j.es_capitan_interino);
+    const capitanVisitante = presentesVisitante.some(j => j.es_capitan || j.es_capitan_interino);
 
-    if (!capitanLocal || !capitanVisitante) return alert(`CAPITÁN AUSENTE:\n\nAmbos equipos deben tener a su capitán en cancha (marcado como "Presente").`);
+    if (!capitanLocal || !capitanVisitante) return alert(`CAPITÁN AUSENTE:\n\nAmbos equipos deben tener a su capitán (Oficial o Interino) en cancha.`);
     
-    if (!confirm('¿Confirmas que ya pasaste lista a ambos equipos, cumplen con el mínimo de jugadores, los capitanes están presentes y el partido está por comenzar?')) return;
+    if (!confirm('¿Confirmas que ya pasaste lista a ambos equipos, cumplen con el mínimo de jugadores, los capitanes están listos y el partido está por comenzar?')) return;
 
     procesandoInicio.value = true;
     try {
