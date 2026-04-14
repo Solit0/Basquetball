@@ -69,21 +69,24 @@ const crearCanchaConZonas = async (datosCancha) => {
     }
 };
 // Reemplaza obtenerCanchaYZonasPorEntrenador por esta:
-const obtenerCanchaYZonasPorEntrenador = async (idEquipo) => {
+const obtenerCanchaYZonasPorEntrenador = async (idEntrenador) => { // 🔴 Cambiamos el nombre de la variable para que tenga sentido
     try {
-        console.log(`🗄️ [SERVICE] Buscando sede para el equipo local: ${idEquipo}`);
+        console.log(`🗄️ [SERVICE] Buscando sede para el entrenador: ${idEntrenador}`);
         
-        // 1. Buscamos la cancha asignada a este equipo
+        // 1. Buscamos el equipo ASIGNADO a este entrenador
         const equipo = await db.select({
             id_cancha: schema.equipos.idCancha,
             nombre_oficial: schema.equipos.nombreOficial
         })
         .from(schema.equipos)
-        .where(eq(schema.equipos.idEquipo, idEquipo)) // ¡Ahora buscamos por el ID del Equipo!
+        // 🔴 EL ERROR ESTABA AQUÍ: Ahora buscamos correctamente por el idEntrenador
+        .where(eq(schema.equipos.idEntrenador, idEntrenador)) 
         .limit(1);
 
         if (equipo.length === 0 || !equipo[0].id_cancha) {
-            throw new Error("El equipo local no tiene una cancha oficial registrada.");
+            const error = new Error("El entrenador no tiene un equipo con cancha registrada.");
+            error.status = 404; // Aseguramos que devuelva 404 para que el frontend reaccione
+            throw error;
         }
 
         const idCancha = equipo[0].id_cancha;
