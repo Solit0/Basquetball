@@ -7,15 +7,24 @@ console.log("Usuario:", process.env.GMAIL_USER);
 console.log("Password cargado:", process.env.GMAIL_PASSWORD ? "SÍ" : "NO (Revisa tu archivo .env)");
 console.log("===============================");
 
-// 3. Configuramos el transportador explícitamente para Google
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // Usa SSL
+    host: 'smtp.gmail.com',
+    port: 587, // 🔴 Cambiamos de 465 a 587
+    secure: false, // 🔴 Debe ser false para el puerto 587
     auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASSWORD
-    }
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+    // 🔴 ESTA ES LA CLAVE PARA RENDER:
+    connectionTimeout: 10000, // 10 segundos de espera
+    socketTimeout: 10000,
+    dnsTimeout: 10000,
+    tls: {
+        // Obliga a usar IPv4 para evitar el error ENETUNREACH
+        servername: 'smtp.gmail.com'
+    },
+    // Forzamos la familia de direcciones 4 (IPv4)
+    family: 4 
 });
  
 const enviarReciboCompra = async (emailDestino, nombreUsuario, detallesBoleto) => {

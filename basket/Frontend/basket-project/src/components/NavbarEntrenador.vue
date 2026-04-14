@@ -77,7 +77,6 @@ const toast = useToast()
 const notificaciones = ref([])
 const menuNotificaciones = ref(false)
 
-// 🔴 Lógica al Montar el Navbar (Cargar datos y disparar alerta)
 onMounted(async () => {
     const idEntrenador = localStorage.getItem('usuario_id');
     
@@ -86,8 +85,10 @@ onMounted(async () => {
             const data = await obtenerNotificacionesEntrenadorService(idEntrenador);
             notificaciones.value = data;
 
-            // Disparo del Toast
-            if (data.length > 0) {
+            // 🔴 Lógica para mostrar el Toast SOLO UNA VEZ por sesión
+            const yaNotificado = sessionStorage.getItem('notificacion_partidos_vista');
+
+            if (data.length > 0 && !yaNotificado) {
                 const fecha = formatFecha(data[0].fecha);
                 
                 if (data.length === 1) {
@@ -99,12 +100,24 @@ onMounted(async () => {
                         timeout: 8000
                     });
                 }
+
+                // Marcamos que ya le avisamos en esta sesión
+                sessionStorage.setItem('notificacion_partidos_vista', 'true');
             }
         } catch (error) {
             console.error("Error cargando la campana de notificaciones:", error);
         }
     }
 })
+
+// En la función logout, limpiamos la variable para que si entra otro entrenador, le salga la alerta.
+const logout = () => {
+    localStorage.removeItem('usuario')
+    localStorage.removeItem('usuario_id')
+    sessionStorage.removeItem('notificacion_partidos_vista') // 🔴 Limpiamos
+    toast.clear()
+    router.push('/login')
+}
 
 const formatFecha = (fechaString) => {
     if (!fechaString) return '';
@@ -114,12 +127,7 @@ const formatFecha = (fechaString) => {
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-const logout = () => {
-    localStorage.removeItem('usuario')
-    localStorage.removeItem('usuario_id')
-    toast.clear()
-    router.push('/login')
-}
+
 </script>
 
 <style scoped>

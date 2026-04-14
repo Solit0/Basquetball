@@ -37,18 +37,22 @@ const crearCanchaConZonas = async (req, res, next) => {
 };
 const getSedeYZonasPorEquipo = async (req, res, next) => {
     try {
-        let { id_equipo } = req.params;
-        id_equipo = id_equipo.replace(/['"]/g, '').trim();
+        // Obtenemos el ID sin importar si la ruta lo llamó id_equipo o id_entrenador
+        const id = req.params.id_entrenador || req.params.id_equipo;
+        
+        if (!id) {
+            return res.status(400).json({ error: "ID no proporcionado" });
+        }
 
-        const datosSede = await canchaService.obtenerCanchaYZonasPorEntrenador(id_equipo);
+        const idLimpio = id.replace(/['"]/g, '').trim();
+        const datosSede = await canchaService.obtenerCanchaYZonasPorEntrenador(idLimpio);
+        
         res.status(200).json(datosSede);
     } catch (error) {
         res.status(404).json({ error: error.message });
     }
 };
 
-// Y en tus rutas (src/Routes/canchaRoutes.js):
-// router.get('/sede-equipo/:id_equipo', canchaController.getSedeYZonasPorEquipo);
 const updateZonas = async (req, res, next) => {
     try {
         const { id_cancha } = req.params;
