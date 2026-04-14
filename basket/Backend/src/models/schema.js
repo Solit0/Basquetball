@@ -225,6 +225,7 @@ const alineaciones = pgTable("alineaciones", {
     puntosAnotados: integer("puntos_anotados").default(0),
     faltasCometidas: integer("faltas_cometidas").default(0),
     rolPartido: varchar("rol_partido", { length: 20 }).default('Suplente'),
+    esCapitanInterino: boolean("es_capitan_interino").default(false),
 }, (table) => [
     foreignKey({ columns: [table.idEquipo], foreignColumns: [equipos.idEquipo], name: "alineaciones_id_equipo_fkey" }),
     foreignKey({ columns: [table.idJugador], foreignColumns: [jugadores.idJugador], name: "alineaciones_id_jugador_fkey" }),
@@ -322,6 +323,7 @@ const asistenciaPartidos = pgTable("asistencia_partidos", {
     idPartido: uuid("id_partido").notNull(),
     idRoster: uuid("id_roster").notNull(), 
     estado: varchar("estado", { length: 20 }).default('Ausente'),
+    esCapitanInterino: boolean("es_capitan_interino").default(false),
 }, (table) => [
     foreignKey({ columns: [table.idRoster], foreignColumns: [rosterTorneo.idRoster], name: "asistencia_partidos_id_roster_fkey" }).onDelete("cascade"),
     foreignKey({ columns: [table.idPartido], foreignColumns: [partidos.idPartido], name: "asistencia_partidos_id_partido_fkey" }).onDelete("cascade"),
@@ -355,6 +357,7 @@ const resolucionesDisciplinarias = pgTable("resoluciones_disciplinarias", {
     estado: varchar("estado").default('Activa'),
     observacionesAdmin: text("observaciones_admin"),
     fechaResolucion: timestamp("fecha_resolucion", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+    multaPagada: boolean("multa_pagada").default(false),
 }, (table) => [
     foreignKey({
         columns: [table.idSancion],
@@ -362,6 +365,35 @@ const resolucionesDisciplinarias = pgTable("resoluciones_disciplinarias", {
         name: "resoluciones_disciplinarias_id_sancion_fkey"
     }).onDelete("cascade")
 ]);
+// 1. Zonas de la cancha (Ej: General, VIP, Gradas Sur)
+const zonasCancha = pgTable("zonas_cancha", {
+    idZona: uuid("id_zona").defaultRandom().primaryKey().notNull(),
+    idCancha: uuid("id_cancha").notNull().references(() => canchas.idCancha),
+    nombreZona: varchar("nombre_zona", { length: 100 }).notNull(), 
+    capacidad: integer("capacidad").notNull(),
+    activo: boolean("activo").default(true),
+});
+
+const boletosPartido = pgTable("boletos_partido", {
+    idBoleto: uuid("id_boleto").defaultRandom().primaryKey().notNull(),
+    idPartido: uuid("id_partido").notNull().references(() => partidos.idPartido),
+    idZona: uuid("id_zona").notNull().references(() => zonasCancha.idZona),
+    precio: numeric("precio", { precision: 10, scale: 2 }).notNull(), 
+    disponibles: integer("disponibles").notNull(), 
+});
+
+const transaccionesTicketing = pgTable("transacciones_ticketing", {
+    idTransaccion: uuid("id_transaccion").defaultRandom().primaryKey().notNull(),
+    idUsuario: uuid("id_usuario").notNull().references(() => usuarios.idUsuario), 
+    idBoleto: uuid("id_boleto").notNull().references(() => boletosPartido.idBoleto),
+    cantidad: integer("cantidad").notNull().default(1),
+    montoTotal: numeric("monto_total", { precision: 10, scale: 2 }).notNull(),
+    metodoPago: varchar("metodo_pago", { length: 50 }), 
+    estadoPago: varchar("estado_pago", { length: 20 }).default('Reservado'), 
+    fechaCompra: timestamp("fecha_compra", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+    expiraEn: timestamp("expira_en", { mode: 'string' }),
+    referenciaPasarela: varchar("referencia_pasarela", { length: 255 }), 
+});
 module.exports = {
     roles,
     usuarios,
@@ -386,4 +418,7 @@ module.exports = {
     asistenciaPartidos,
     rosterTorneo,
     resolucionesDisciplinarias,
+    zonasCancha,
+    boletosPartido,
+    transaccionesTicketing
 };

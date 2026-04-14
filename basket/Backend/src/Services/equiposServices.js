@@ -22,37 +22,101 @@ const obtenerTodos = async () => {
 };
 
 const obtenerJugadoresPorEquipo = async (id_equipo) => {
-    const rows = await db.select({
-        id_jugador: schema.jugadores.idJugador,
-        nombre: schema.jugadores.nombre,
-        apellido: schema.jugadores.apellido,
-        fecha_nacimiento: schema.jugadores.fechaNacimiento,
-        posicion: schema.jugadores.posicion,
-        estatura: schema.jugadores.estatura,
-        numero_camiseta: schema.plantillaEquipo.numeroCamiseta,
-        rol_equipo: schema.plantillaEquipo.rolEquipo,
-        es_capitan: schema.plantillaEquipo.esCapitan,
-        esta_suspendido: sql`EXISTS (
-            SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
-            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
-            WHERE s.id_jugador = ${schema.jugadores.idJugador}
-              AND rd.estado = 'Activa'
-              AND rd.partidos_suspension > rd.partidos_cumplidos
-        )`.as('esta_suspendido')
+    try {
+        const rows = await db.select({
+            id_jugador: schema.jugadores.idJugador,
+            nombre: schema.jugadores.nombre,
+            apellido: schema.jugadores.apellido,
+            fecha_nacimiento: schema.jugadores.fechaNacimiento,
+            posicion: schema.jugadores.posicion,
+            estatura: schema.jugadores.estatura,
+            activo: schema.plantillaEquipo.activo,
+            
+            suspendido_db: sql`EXISTS (
+                SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador}
+                  AND rd.estado = 'Activa'
+                  AND rd.partidos_suspension > rd.partidos_cumplidos
+            ) OR EXISTS (
+                SELECT 1 FROM ${schema.sanciones} s2
+                WHERE s2.id_jugador = ${schema.jugadores.idJugador}
+                  AND s2.estado_resolucion = 'Pendiente'
+            )`.mapWith(Boolean).as('suspendido_db'),
+            
+            detalle_sancion_motivo: sql`(
+                SELECT s.tipo_sancion 
+                FROM ${schema.sanciones} s
+                LEFT JOIN ${schema.resolucionesDisciplinarias} rd ON s.id_sancion = rd.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND (s.estado_resolucion = 'Pendiente' OR (rd.estado = 'Activa' AND rd.partidos_suspension > rd.partidos_cumplidos))
+                LIMIT 1
+            )`.mapWith(String).as('detalle_sancion_motivo'),
 
-    })
-    .from(schema.jugadores)
-    .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
-    .where(
-        and(
-            eq(schema.plantillaEquipo.idEquipo, id_equipo),
-            eq(schema.plantillaEquipo.activo, true)
-        )
-    );
+            detalle_sancion_partidos: sql`(
+                SELECT (rd.partidos_suspension - rd.partidos_cumplidos)::int
+                FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND rd.estado = 'Activa'
+                LIMIT 1
+            )`.mapWith(Number).as('detalle_sancion_partidos'),
+            detalle_monto_multa: sql`(
+                SELECT rd.monto_multa
+                FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND rd.estado = 'Activa'
+                LIMIT 1
+            )`.mapWith(Number).as('detalle_monto_multa'),
+            
+            detalle_multa_pagada: sql`(
+                SELECT rd.multa_pagada
+                FROM ${schema.resolucionesDisciplinarias} rd
+                INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+                WHERE s.id_jugador = ${schema.jugadores.idJugador} 
+                  AND rd.estado = 'Activa'
+                LIMIT 1
+            )`.mapWith(Boolean).as('detalle_multa_pagada')
 
-    return rows;
+        })
+        .from(schema.jugadores)
+        .innerJoin(schema.plantillaEquipo, eq(schema.jugadores.idJugador, schema.plantillaEquipo.idJugador))
+        .where(
+            and(
+                eq(schema.plantillaEquipo.idEquipo, id_equipo),
+                eq(schema.plantillaEquipo.activo, true)
+            )
+        );
+
+        return rows.map(r => {
+            const estaSancionado = !!r.suspendido_db;
+            const partidosPendientes = parseInt(r.detalle_sancion_partidos) || 0;
+            const motivo = r.detalle_sancion_motivo || 'Pendiente de revisión';
+            return {
+                id_jugador: r.id_jugador,
+                nombre: r.nombre,
+                apellido: r.apellido,
+                fecha_nacimiento: r.fecha_nacimiento,
+                posicion: r.posicion,
+                estatura: r.estatura,
+                activo: r.activo,
+                numero_camiseta: null,
+                rol_equipo: 'N/A',
+                es_capitan: false,
+                esta_suspendido: estaSancionado,
+                sancion_motivo: motivo,
+                partidos_restantes: partidosPendientes,
+                monto_multa: parseFloat(r.detalle_monto_multa) || 0,
+                multa_pagada: r.detalle_multa_pagada === true
+            };
+        });
+
+    } catch (error) {
+        console.error(`[BACKEND ERROR] Falló la consulta SQL en obtenerJugadoresPorEquipo:`, error);
+        throw error;
+    }
 };
-
 const obtenerPorId = async (id_equipo) => {
     const rows = await db.select({
         id_equipo: schema.equipos.idEquipo,
@@ -127,7 +191,6 @@ const crear = async (datosEquipo) => {
             canchaAsignadaId = nueva.id_cancha;
         }
 
-        // 3. CREAR EQUIPO
         const [nuevoEquipo] = await tx.insert(schema.equipos)
             .values({
                 nombreOficial: nombre_oficial,
@@ -224,6 +287,26 @@ const actualizar = async (id_equipo, datosEquipo) => {
 };
 
 const cambiarEstado = async (id_equipo, activo) => {
+    // 🔴 1. Si intentan DESACTIVAR, validamos que no esté jugando un torneo
+    if (activo === false) {
+        const torneosEnCurso = await db.select({ id: schema.inscripciones.idInscripcion })
+            .from(schema.inscripciones)
+            .innerJoin(schema.torneos, eq(schema.inscripciones.idTorneo, schema.torneos.idTorneo))
+            .where(
+                and(
+                    eq(schema.inscripciones.idEquipo, id_equipo),
+                    eq(schema.inscripciones.estadoInscripcion, 'Aprobada'),
+                    eq(schema.torneos.estado, 'En curso')
+                )
+            )
+            .limit(1); // Solo necesitamos saber si existe al menos uno
+
+        if (torneosEnCurso.length > 0) {
+            throw new Error('No puedes deshabilitar el equipo porque actualmente está compitiendo en un torneo en curso.');
+        }
+    }
+
+    // 2. Si todo está bien (o si lo están activando), procedemos con la actualización
     const rows = await db.update(schema.equipos)
         .set({ activo: activo })
         .where(eq(schema.equipos.idEquipo, id_equipo))
@@ -289,12 +372,19 @@ const obtenerEquiposLibres = async () => {
 };
 
 const abandonarEquipo = async (id_equipo) => {
-    const rows = await db.update(schema.equipos)
-        .set({ idEntrenador: null })
-        .where(eq(schema.equipos.idEquipo, id_equipo))
-        .returning();
-        
-    return rows[0];
+    try {
+        const rows = await db.update(schema.equipos)
+            .set({ idEntrenador: null })
+            .where(eq(schema.equipos.idEquipo, id_equipo))
+            .returning();
+            
+        return rows[0];
+    } catch (error) {
+        if (error.message && error.message.includes('REGLA_TORNEO')) {
+            throw new Error('No puedes abandonar el equipo porque actualmente está compitiendo en un torneo en curso.');
+        }
+        throw error;
+    }
 };
 
 const unirseEquipo = async (id_equipo, id_entrenador) => {

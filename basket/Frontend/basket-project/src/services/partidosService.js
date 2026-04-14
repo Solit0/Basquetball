@@ -23,6 +23,10 @@ export const finalizarPartidoService = async (idPartido, datos) => {
     const response = await api.post(`/partidos/${idPartido}/finalizar`, datos)
     return response.data
 }
+export const obtenerNotificacionesEntrenadorService = async (idEntrenador) => {
+    const response = await api.get(`/partidos/notificaciones/entrenador/${idEntrenador}`);
+    return response.data;
+};
 export const obtenerResumenPartidoService = async (idPartido) => {
     const response = await api.get(`/partidos/${idPartido}/resumen`)
     return response.data

@@ -19,7 +19,7 @@
             </div>
         </nav>
 
-        <div class="py-12 px-4 sm:px-6 lg:px-8">
+        <div class="py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
             <div class="max-w-4xl mx-auto">
                 <div class="text-center mb-12">
                     <h2 class="text-4xl font-bold text-gray-900 mb-4">Crear Equipo</h2>
@@ -102,7 +102,7 @@
 
                         <div class="pb-8">
                             <h3 class="text-2xl font-bold text-gray-900 mb-2">Sede Local Oficial</h3>
-                            <p class="text-gray-500 text-sm mb-6">Registra la cancha principal donde tu equipo jugará como local. Asegúrate de que la dirección sea exacta para evitar duplicados.</p>
+                            <p class="text-gray-500 text-sm mb-6">Registra la cancha principal donde tu equipo jugará como local y configura las zonas de asientos para la venta de boletos.</p>
 
                             <div class="space-y-4 bg-gray-50 p-6 rounded-xl border border-gray-200">
                                 <div>
@@ -125,14 +125,34 @@
                                         required />
                                 </div>
 
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                        Capacidad (Aproximada)
-                                    </label>
-                                    <input type="number" v-model.number="form.newCourtCapacity"
-                                        placeholder="Ej: 500"
-                                        min="1"
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
+                                <div class="pt-6 mt-6 border-t border-gray-200">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <div>
+                                            <h4 class="text-lg font-bold text-gray-800">Zonas de la Cancha</h4>
+                                            <p class="text-xs text-gray-500 mt-1">Configura las áreas (Ej. VIP, General) para separar los precios de los boletos.</p>
+                                        </div>
+                                        <button type="button" @click="agregarZona" class="text-sm bg-white border border-indigo-200 text-indigo-600 font-bold px-3 py-1.5 rounded-md hover:bg-indigo-50 transition flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                            Añadir Zona
+                                        </button>
+                                    </div>
+
+                                    <div class="space-y-3">
+                                        <div v-for="(zona, index) in form.zonas" :key="index" class="flex gap-3 items-start bg-white p-4 rounded-lg border border-gray-200 shadow-sm relative">
+                                            <div class="flex-1">
+                                                <label class="block text-xs font-bold text-gray-600 mb-1 uppercase tracking-wide">Nombre de la Zona</label>
+                                                <input type="text" v-model="zona.nombre_zona" placeholder="Ej: General" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-transparent text-sm font-medium outline-none" required />
+                                            </div>
+                                            <div class="w-32">
+                                                <label class="block text-xs font-bold text-gray-600 mb-1 uppercase tracking-wide">Capacidad</label>
+                                                <input type="number" v-model.number="zona.capacidad" placeholder="Ej: 100" min="1" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-indigo-500 focus:border-transparent text-sm font-medium outline-none" required />
+                                            </div>
+                                            <button v-if="form.zonas.length > 1" type="button" @click="removerZona(index)" class="mt-6 text-red-400 hover:text-red-600 p-1 transition" title="Eliminar zona">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </div>
+                                        <p v-if="form.zonas.length === 0" class="text-sm text-gray-500 italic">Si no agregas zonas, el sistema creará automáticamente una zona "General".</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -169,7 +189,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { crearEquipoService } from '../services/equiposService'
-import { crearCanchaService } from '../services/canchaService' 
+import { crearCanchaConZonasService } from '../services/canchaService' 
 
 const router = useRouter()
 const procesando = ref(false)
@@ -180,12 +200,21 @@ const form = ref({
     classification: '',
     newCourtName: '',
     newCourtAddress: '',
-    newCourtCapacity: null
+    // Se eliminó newCourtCapacity de aquí
+    zonas: [{ nombre_zona: 'General', capacidad: null }] 
 })
 
 const errors = ref({
     general: ''
 })
+
+const agregarZona = () => {
+    form.value.zonas.push({ nombre_zona: '', capacidad: null })
+}
+
+const removerZona = (index) => {
+    form.value.zonas.splice(index, 1)
+}
 
 const handleCreateTeam = async () => {
     errors.value.general = ''
@@ -209,18 +238,23 @@ const handleCreateTeam = async () => {
     procesando.value = true;
 
     try {
+        const zonasValidas = form.value.zonas.filter(z => z.nombre_zona.trim() !== '' && z.capacidad > 0);
+
         const nuevaCanchaPayload = {
             nombre_cancha: form.value.newCourtName,
             direccion: form.value.newCourtAddress,
-            capacidad: form.value.newCourtCapacity || null
+            capacidad: null, // Asignamos null directamente
+            zonas: zonasValidas
         };
-        const respuestaCancha = await crearCanchaService(nuevaCanchaPayload);
+
+        const respuestaCancha = await crearCanchaConZonasService(nuevaCanchaPayload);
         const objCancha = respuestaCancha.cancha ? respuestaCancha.cancha : respuestaCancha;
         const idCanchaFinal = objCancha.idCancha || objCancha.id_cancha;
 
         if (!idCanchaFinal) {
             throw new Error("No se pudo obtener el ID de la cancha creada.");
         }
+        
         const idEntrenador = localStorage.getItem('usuario_id'); 
         const payloadEquipo = {
             nombre_oficial: form.value.teamName,
@@ -247,12 +281,22 @@ const handleCreateTeam = async () => {
         procesando.value = false;
     }
 }
+
 const cancelCreate = () => {
     router.push('/entrenador')
 }
+
 const logout = () => {
     localStorage.removeItem('usuario')
     localStorage.removeItem('usuario_id')
     router.push('/login')
 }
 </script>
+
+<style scoped>
+.animate-fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

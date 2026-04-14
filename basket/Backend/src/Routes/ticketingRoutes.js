@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const ticketingController = require('../Controllers/ticketingController');
+router.get('/partido/:id_partido', ticketingController.obtenerBoletosPorPartido);
+router.post('/reservar', ticketingController.iniciarReserva);
+router.post('/confirmar-pago', ticketingController.confirmarPago);
+router.post('/cancelar', ticketingController.cancelarReservaManual);
+router.post('/habilitar-venta', ticketingController.postHabilitarVenta);
+router.get('/mis-boletos/:id_usuario', ticketingController.getMisBoletos);
+module.exports = router;

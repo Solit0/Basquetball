@@ -221,7 +221,39 @@ const obtenerResumenPartido = async (id_partido) => {
         informe: resInforme.length > 0 ? resInforme[0].contenido : 'No se redactó informe.'
     };
 };
+const obtenerNotificacionesEntrenador = async (idEntrenador) => {
+    try {
+        const query = sql`
+            SELECT 
+                p.id_partido,
+                p.fecha,
+                p.hora,
+                el.nombre_oficial AS local_nombre,
+                ev.nombre_oficial AS visitante_nombre,
+                c.nombre_cancha AS sede
+            FROM partidos p
+            INNER JOIN equipos el ON p.id_equipo_local = el.id_equipo
+            INNER JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+            INNER JOIN canchas c ON p.id_cancha = c.id_cancha
+            WHERE (el.id_entrenador = ${idEntrenador}::uuid OR ev.id_entrenador = ${idEntrenador}::uuid)
+              AND p.estado = 'Programado'
+              AND p.fecha >= CURRENT_DATE
+            ORDER BY p.fecha ASC, p.hora ASC
+        `;
 
+        const resultados = await db.execute(query);
+        const partidos = resultados.rows ? resultados.rows : resultados;
+
+        if (partidos.length === 0) return [];
+        const fechaProxima = partidos[0].fecha;
+        const partidosDelDia = partidos.filter(p => p.fecha === fechaProxima);
+
+        return partidosDelDia;
+    } catch (error) {
+        console.error("Error al obtener notificaciones:", error);
+        throw new Error("No se pudieron cargar las notificaciones.");
+    }
+};
 const finalizarPartido = async (id_partido, datosResultado) => {
     const { 
         marcador_local, marcador_visitante, id_arbitro, 
@@ -273,20 +305,31 @@ const finalizarPartido = async (id_partido, datosResultado) => {
             }
 
             if (sanciones && sanciones.length > 0) {
-                const sancionesData = sanciones.map(san => ({
-                    idJugador: san.id_jugador,
-                    idTorneo: id_torneo,
-                    idPartido: id_partido,
-                    motivo: san.motivo,
-                    fechaInicio: san.fecha_inicio,
-                    fechaFin: san.fecha_fin,
-                    tipoSancion: san.tipo_sancion
-                }));
+                const tiposValidos = [
+                    'Conducta Antideportiva', 
+                    'Agresión Física', 
+                    'Acumulación de Faltas Técnicas', 
+                    'Falta Flagrante', 
+                    'Otro'
+                ];
+
+                const sancionesData = sanciones.map(san => {
+                    if (!tiposValidos.includes(san.tipo_sancion)) {
+                        throw new Error(`El tipo de sanción '${san.tipo_sancion}' no es válido o fue manipulado.`);
+                    }
+                    return {
+                        idJugador: san.id_jugador,
+                        idTorneo: id_torneo,
+                        idPartido: id_partido,
+                        motivo: san.motivo,
+                        tipoSancion: san.tipo_sancion,
+                        estadoResolucion: 'Pendiente' 
+                    };
+                });
                 await tx.insert(schema.sanciones).values(sancionesData);
             }
 
             if (puntos_jugadores && puntos_jugadores.length > 0) {
-
                 const rosters = await tx.select({
                     id_jugador: schema.rosterTorneo.idJugador,
                     id_roster: schema.rosterTorneo.idRoster
@@ -294,10 +337,12 @@ const finalizarPartido = async (id_partido, datosResultado) => {
                 .from(schema.rosterTorneo)
                 .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
                 .where(eq(schema.inscripciones.idTorneo, id_torneo));
+                
                 const mapaRosters = {};
                 rosters.forEach(r => {
                     mapaRosters[r.id_jugador] = r.id_roster;
                 });
+                
                 const puntosData = puntos_jugadores
                     .filter(pj => pj.puntos > 0)
                     .map(pj => {
@@ -318,23 +363,55 @@ const finalizarPartido = async (id_partido, datosResultado) => {
                 }
             }
 
-            return { mensaje: 'Partido finalizado, informe guardado y perdedor eliminado.' };
+            const rostersParticipantes = await tx.select({
+                id_jugador: schema.rosterTorneo.idJugador
+            })
+            .from(schema.rosterTorneo)
+            .innerJoin(schema.inscripciones, eq(schema.rosterTorneo.idInscripcion, schema.inscripciones.idInscripcion))
+            .where(
+                and(
+                    eq(schema.inscripciones.idTorneo, id_torneo),
+                    inArray(schema.inscripciones.idEquipo, [id_equipo_local, id_equipo_visitante])
+                )
+            );
+
+            const idsJugadoresRoster = rostersParticipantes.map(r => r.id_jugador);
+
+            if (idsJugadoresRoster.length > 0) {
+                const resolucionesActivas = await tx.select({
+                    id_resolucion: schema.resolucionesDisciplinarias.idResolucion,
+                    partidos_cumplidos: schema.resolucionesDisciplinarias.partidosCumplidos,
+                    partidos_suspension: schema.resolucionesDisciplinarias.partidosSuspension
+                })
+                .from(schema.resolucionesDisciplinarias)
+                .innerJoin(schema.sanciones, eq(schema.resolucionesDisciplinarias.idSancion, schema.sanciones.idSancion))
+                .where(
+                    and(
+                        eq(schema.resolucionesDisciplinarias.estado, 'Activa'),
+                        eq(schema.sanciones.idTorneo, id_torneo),
+                        inArray(schema.sanciones.idJugador, idsJugadoresRoster)
+                    )
+                );
+                for (const res of resolucionesActivas) {
+                    if (res.partidos_cumplidos < res.partidos_suspension) {
+                        await tx.update(schema.resolucionesDisciplinarias)
+                            .set({ partidosCumplidos: res.partidos_cumplidos + 1 })
+                            .where(eq(schema.resolucionesDisciplinarias.idResolucion, res.id_resolucion));
+                    }
+                }
+            }
+
+            return { mensaje: 'Partido finalizado, informe guardado, estadísticas y sanciones actualizadas.' };
         });
     } catch (error) {
-    
-    
         console.error("Mensaje principal:", error.message);
         if (error.cause) {
             console.error("Causa (PostgresError):", error.cause.message);
             console.error("Detalle:", error.cause.detail);
-            console.error("Código DB:", error.cause.code);
-            console.error("Tabla afectada:", error.cause.table);
-            console.error("Columna afectada:", error.cause.column);
         }
         throw error;
     }
 };
-
 const obtenerHistorialEquipo = async (id_entrenador) => {
     const equipoLocal = alias(schema.equipos, 'equipo_local');
     const equipoVisitante = alias(schema.equipos, 'equipo_visitante');
@@ -464,7 +541,6 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
             id_jugador: schema.rosterTorneo.idJugador,
             estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Ausente')`.as('estado_asistencia'),
             puntos_anotados: sql`COALESCE(${schema.estadisticasPartido.puntosAnotados}, 0)`.as('puntos_anotados'),
-            // Tomamos el rol directamente del roster oficial
             rol_partido: schema.rosterTorneo.rolRoster, 
             nombre: schema.jugadores.nombre,
             apellido: schema.jugadores.apellido,
@@ -522,6 +598,7 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
 module.exports = { 
     crearMultiples, 
     obtenerPorTorneo, 
+    obtenerNotificacionesEntrenador,
     finalizarPartido, 
     obtenerResumenPartido, 
     obtenerHistorialEquipo, 

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": " src/Config/index.js",
+    "start": " node src/Config/index.js",
     "dev": "nodemon src/Config/index.js",
     "seed": "node src/seed.js"
   },
@@ -19,7 +19,10 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-validator": "^7.3.1",
-    "pg": "^8.18.0"
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.5",
+    "pg": "^8.18.0",
+    "stripe": "^22.0.1"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.100.1",

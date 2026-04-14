@@ -118,8 +118,13 @@
                     <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         <div v-for="equipo in equiposInscritos" :key="equipo.id_equipo" 
                              @click="abrirScouting(equipo)"
+                             :class="equipo.estado_inscripcion === 'Eliminado' ? 'opacity-75 grayscale-30' : ''"
                              class="bg-white border border-gray-200 rounded-xl p-5 text-center hover:shadow-md hover:border-indigo-400 transition-all group cursor-pointer relative">
                             
+                            <div v-if="equipo.estado_inscripcion === 'Eliminado'" class="absolute top-2 left-2 bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider border border-red-200 z-10 shadow-sm">
+                                Eliminado
+                            </div>
+
                             <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                             </div>
@@ -139,7 +144,7 @@
 
             </div>
 
-            <div v-if="showScoutingModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+            <div v-if="showScoutingModal" class="fixed inset-0 z-120 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
                     <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
                         <div>

@@ -1,6 +1,6 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, asc, sql } = require('drizzle-orm');
+const { eq, asc, sql, and } = require('drizzle-orm');
 
 const obtenerTodas = async () => {
     const rows = await db.select({
@@ -9,7 +9,7 @@ const obtenerTodas = async () => {
         address: schema.canchas.direccion,
         capacity: schema.canchas.capacidad
     })
-    .from(schema.canchas)
+    .from(schema.canchas) 
     .where(eq(schema.canchas.activo, true))
     .orderBy(asc(schema.canchas.nombreCancha));
 
@@ -25,7 +25,6 @@ const crear = async (canchaData) => {
         throw new Error("Ya existe una cancha registrada con esta misma dirección exacta.");
     }
     
-    // Insertamos la nueva cancha
     const rows = await db.insert(schema.canchas)
         .values({
             nombreCancha: canchaData.nombre_cancha,
@@ -36,8 +35,107 @@ const crear = async (canchaData) => {
     
     return rows[0];
 };
+const crearCanchaConZonas = async (datosCancha) => {
+    const { nombre_cancha, direccion, capacidad, zonas } = datosCancha;
 
+    try {
+        return await db.transaction(async (tx) => {
+            const [nuevaCancha] = await tx.insert(schema.canchas)
+                .values({
+                    nombreCancha: nombre_cancha,
+                    direccion: direccion,
+                    capacidad: capacidad || null,
+                    activo: true
+                })
+                .returning();
+            const zonasAInsertar = (zonas && zonas.length > 0) 
+                ? zonas.map(z => ({
+                    idCancha: nuevaCancha.idCancha,
+                    nombreZona: z.nombre_zona,
+                    capacidad: z.capacidad
+                }))
+                : [{
+                    idCancha: nuevaCancha.idCancha,
+                    nombreZona: 'General',
+                    capacidad: capacidad || 100 
+                }];
+            await tx.insert(schema.zonasCancha).values(zonasAInsertar);
+
+            return nuevaCancha;
+        });
+    } catch (error) {
+        console.error("Error al crear la cancha con zonas:", error);
+        throw error;
+    }
+};
+// Reemplaza obtenerCanchaYZonasPorEntrenador por esta:
+const obtenerCanchaYZonasPorEntrenador = async (idEquipo) => {
+    try {
+        console.log(`🗄️ [SERVICE] Buscando sede para el equipo local: ${idEquipo}`);
+        
+        // 1. Buscamos la cancha asignada a este equipo
+        const equipo = await db.select({
+            id_cancha: schema.equipos.idCancha,
+            nombre_oficial: schema.equipos.nombreOficial
+        })
+        .from(schema.equipos)
+        .where(eq(schema.equipos.idEquipo, idEquipo)) // ¡Ahora buscamos por el ID del Equipo!
+        .limit(1);
+
+        if (equipo.length === 0 || !equipo[0].id_cancha) {
+            throw new Error("El equipo local no tiene una cancha oficial registrada.");
+        }
+
+        const idCancha = equipo[0].id_cancha;
+
+        // 2. Buscamos los datos de la cancha y sus zonas
+        const cancha = await db.select().from(schema.canchas).where(eq(schema.canchas.idCancha, idCancha)).limit(1);
+        const zonas = await db.select().from(schema.zonasCancha).where(eq(schema.zonasCancha.idCancha, idCancha));
+
+        return {
+            equipo: equipo[0].nombre_oficial,
+            cancha: cancha[0],
+            zonas: zonas
+        };
+    } catch (error) {
+        console.error("Error al obtener datos de la sede:", error);
+        throw error;
+    }
+};
+
+const sincronizarZonasCancha = async (idCancha, zonasActualizadas) => {
+    try {
+        return await db.transaction(async (tx) => {
+            
+            for (const zona of zonasActualizadas) {
+                if (zona.id_zona) {
+                    await tx.update(schema.zonasCancha)
+                        .set({ 
+                            nombreZona: zona.nombre_zona, 
+                            capacidad: zona.capacidad 
+                        })
+                        .where(eq(schema.zonasCancha.idZona, zona.id_zona));
+                } else {
+                    await tx.insert(schema.zonasCancha)
+                        .values({
+                            idCancha: idCancha,
+                            nombreZona: zona.nombre_zona,
+                            capacidad: zona.capacidad
+                        });
+                }
+            }
+
+            return { mensaje: "Zonas actualizadas correctamente" };
+        });
+    } catch (error) {
+        console.error("Error al sincronizar las zonas:", error);
+        throw error;
+    }
+};
 module.exports = {
     obtenerTodas,
-    crear
+    crear,
+    crearCanchaConZonas,
+    obtenerCanchaYZonasPorEntrenador,
+    sincronizarZonasCancha
 };

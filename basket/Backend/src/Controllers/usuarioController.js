@@ -24,13 +24,14 @@ const login = async (req, res, next) => {
 };
 const obtenerUsuarios = async (req, res, next) => {
     try {
-        // CORRECCIÓN: Usar authService
         const usuarios = await authService.obtenerTodos();
         res.status(200).json(usuarios);
     } catch (error) {
         next(error);
     }
 };
+
+// En Backend/src/Controllers/usuarioController.js
 
 const crearUsuario = async (req, res, next) => {
     try {
@@ -39,8 +40,8 @@ const crearUsuario = async (req, res, next) => {
         if (!nombre || !email || !password || !rol) {
             return res.status(400).json({ error: 'Todos los campos son obligatorios' });
         }
+        const rolesValidos = ['administrador', 'entrenador', 'arbitro', 'espectador'];
         
-        const rolesValidos = ['administrador', 'entrenador', 'arbitro'];
         if (!rolesValidos.includes(rol)) {
             return res.status(400).json({ error: 'El rol seleccionado no es válido' });
         }

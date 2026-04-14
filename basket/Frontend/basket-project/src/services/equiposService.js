@@ -1,5 +1,4 @@
 // src/services/equiposService.js
-// src/services/equiposService.js
 import { api } from '../Enviroments/enviroment'
 
 export const obtenerEquiposService = async () => {

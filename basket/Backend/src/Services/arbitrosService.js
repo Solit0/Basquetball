@@ -249,22 +249,70 @@ const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
         
     if (partidoInfo.length === 0) return [];
     const idTorneo = partidoInfo[0].idTorneo;
-    
+
     const rows = await db.select({
         id_jugador: schema.rosterTorneo.idJugador, 
         nombre: schema.jugadores.nombre,
         apellido: schema.jugadores.apellido,
         numero_camiseta: schema.rosterTorneo.numeroCamiseta, 
         es_capitan: schema.rosterTorneo.esCapitan, 
+        es_capitan_interino: sql`COALESCE(${schema.asistenciaPartidos.esCapitanInterino}, false)`.mapWith(Boolean).as('es_capitan_interino'),
+        
         estado_asistencia: sql`COALESCE(${schema.asistenciaPartidos.estado}, 'Pendiente')`.as('estado_asistencia'),
-        esta_suspendido: sql`EXISTS (
+        
+        suspendido_db: sql`EXISTS (
             SELECT 1 FROM ${schema.resolucionesDisciplinarias} rd
             INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
             WHERE s.id_jugador = ${schema.rosterTorneo.idJugador}
+            AND s.id_torneo = ${idTorneo}
+            AND rd.estado = 'Activa'
+            AND rd.partidos_suspension > rd.partidos_cumplidos
+        ) OR EXISTS (
+            SELECT 1 FROM ${schema.sanciones} s2
+            WHERE s2.id_jugador = ${schema.rosterTorneo.idJugador}
+            AND s2.id_torneo = ${idTorneo}
+            AND s2.estado_resolucion = 'Pendiente'
+        )`.mapWith(Boolean).as('suspendido_db'),
+
+        detalle_sancion_motivo: sql`(
+            SELECT s.tipo_sancion 
+            FROM ${schema.sanciones} s
+            LEFT JOIN ${schema.resolucionesDisciplinarias} rd ON s.id_sancion = rd.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador} 
+              AND s.id_torneo = ${idTorneo}
+              AND (s.estado_resolucion = 'Pendiente' OR (rd.estado = 'Activa' AND rd.partidos_suspension > rd.partidos_cumplidos))
+            LIMIT 1
+        )`.mapWith(String).as('detalle_sancion_motivo'),
+
+        detalle_sancion_partidos: sql`(
+            SELECT (rd.partidos_suspension - rd.partidos_cumplidos)::int
+            FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador} 
               AND s.id_torneo = ${idTorneo}
               AND rd.estado = 'Activa'
-              AND rd.partidos_suspension > rd.partidos_cumplidos
-        )`.as('esta_suspendido')
+            LIMIT 1
+        )`.mapWith(Number).as('detalle_sancion_partidos'),
+        
+        detalle_monto_multa: sql`(
+            SELECT rd.monto_multa
+            FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador} 
+              AND s.id_torneo = ${idTorneo}
+              AND rd.estado = 'Activa'
+            LIMIT 1
+        )`.mapWith(Number).as('detalle_monto_multa'),
+        
+        detalle_multa_pagada: sql`(
+            SELECT rd.multa_pagada
+            FROM ${schema.resolucionesDisciplinarias} rd
+            INNER JOIN ${schema.sanciones} s ON rd.id_sancion = s.id_sancion
+            WHERE s.id_jugador = ${schema.rosterTorneo.idJugador} 
+              AND s.id_torneo = ${idTorneo}
+              AND rd.estado = 'Activa'
+            LIMIT 1
+        )`.mapWith(Boolean).as('detalle_multa_pagada')
     })
     .from(schema.rosterTorneo)
     .innerJoin(schema.jugadores, eq(schema.rosterTorneo.idJugador, schema.jugadores.idJugador))
@@ -280,11 +328,31 @@ const obtenerAlineacionPartido = async (id_partido, id_equipo) => {
         )
     )
     .orderBy(asc(schema.rosterTorneo.numeroCamiseta));
-    return rows.map(jugador => {
-        if (jugador.esta_suspendido) {
-            jugador.estado_asistencia = 'Inhabilitado';
+
+    return rows.map(r => {
+        const estaSancionado = r.suspendido_db === true || r.suspendido_db === 'true' || r.suspendido_db === 1;
+        const partidosPendientes = parseInt(r.detalle_sancion_partidos) || 0;
+        const motivo = r.detalle_sancion_motivo || null; 
+
+        let asistenciaFinal = r.estado_asistencia;
+        if (estaSancionado) {
+            asistenciaFinal = 'Inhabilitado'; 
         }
-        return jugador;
+
+        return {
+            id_jugador: r.id_jugador,
+            nombre: r.nombre,
+            apellido: r.apellido,
+            numero_camiseta: r.numero_camiseta,
+            es_capitan: r.es_capitan,
+            es_capitan_interino: r.es_capitan_interino,
+            estado_asistencia: asistenciaFinal,
+            esta_suspendido: estaSancionado,
+            sancion_motivo: motivo,
+            partidos_restantes: partidosPendientes,
+            monto_multa: parseFloat(r.detalle_monto_multa) || 0,
+            multa_pagada: r.detalle_multa_pagada === true
+        };
     });
 };
 

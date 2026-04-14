@@ -10,7 +10,9 @@ import TorneosPublicos from '@/views/Espectadores/TorneosPublicos.vue'
 import HorariosPublicos from '@/views/Espectadores/HorariosPublicos.vue'
 import EmisionesPublicas from '@/views/Espectadores/EmisionesPublicas.vue'
 import CalendarioPartidos from '@/views/Espectadores/CalendarioPartidos.vue'
-
+import ComprarBoletos from '@/views/Espectadores/ComprarBoletos.vue'
+import MisBoletos from '@/views/Espectadores/MisBoletos.vue'
+import RegistroEspectador from '../views/Espectadores/RegistroEspectador.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -46,9 +48,25 @@ const router = createRouter({
         component: EmisionesPublicas
     },
     {
+        path: '/comprar-boleto/:id_partido',
+        name: 'ComprarBoletos',
+        component: ComprarBoletos
+    },
+    {
+        path: '/mis-boletos',
+        name: 'MisBoletos',
+        component: MisBoletos,
+        meta: { requiresAuth: true, rolAceptado: 'espectador' }
+    },
+    {
       path: '/login',
       name: 'Login',
       component: Login
+    },
+    {
+        path: '/registro',
+        name: 'RegistroEspectador',
+        component: RegistroEspectador
     },
     {
       path: '/equipos-libres',

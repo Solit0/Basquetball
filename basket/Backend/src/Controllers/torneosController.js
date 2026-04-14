@@ -153,11 +153,43 @@ const responderInscripcion = async (req, res, next) => {
         next(error);
     }
 };
+const finalizarTorneo = async (req, res, next) => {
+    try {
+        const { id_torneo } = req.params;
+        const torneoFinalizado = await torneosService.finalizarTorneoService(id_torneo);
+        res.status(200).json({ 
+            mensaje: "Torneo finalizado con éxito.", 
+            torneo: torneoFinalizado 
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const generarReporteTorneo = async (req, res, next) => {
+    try {
+        const { id_torneo } = req.params;
+        const reporteData = await torneosService.obtenerDatosReporteTorneo(id_torneo);
+        console.log(` [CONTROLLER] Datos obtenidos del servicio correctamente. Verificando estado del torneo...`);
+        if (reporteData.torneo.estado !== 'Finalizado') {
+            console.log(` [CONTROLLER BLOQUEO] Se intentó generar reporte de un torneo no finalizado. Estado actual DB: ${reporteData.torneo.estado}`);
+            return res.status(403).json({ error: "El torneo debe estar Finalizado para generar reportes oficiales." });
+        }
+
+        console.log(`[CONTROLLER] Enviando JSON al frontend con los datos del reporte.`);
+        res.status(200).json(reporteData);
+    } catch (error) {
+        console.error(`[CONTROLLER ERROR CRÍTICO] Error procesando generarReporteTorneo:`, error);
+        next(error);
+    }
+};
 module.exports = {
     crear, 
     editar,
     obtenerInscripciones,
     responderInscripcion,
+    finalizarTorneo,
+    generarReporteTorneo,
     iniciar, 
     obtenerActivos,
     obtenerElegibles, 

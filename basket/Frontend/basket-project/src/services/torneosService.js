@@ -53,3 +53,11 @@ export const responderInscripcionService = async (idTorneo, idEquipo, estado) =>
     const response = await api.patch(`/torneos/${idTorneo}/equipos/${idEquipo}/inscripcion`, { estado_nuevo: estado });
     return response.data;
 }
+export const finalizarTorneoService = async (idTorneo) => {
+    const response = await api.patch(`/torneos/${idTorneo}/finalizar`);
+    return response.data;
+}
+export const obtenerDatosReporteTorneoService = async (idTorneo) => {
+    const response = await api.get(`/torneos/${idTorneo}/reporte`);
+    return response.data;
+}
