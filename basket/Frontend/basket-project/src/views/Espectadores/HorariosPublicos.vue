@@ -7,8 +7,8 @@
             
             <div class="mb-8 text-center md:text-left flex flex-col md:flex-row justify-between items-center">
                 <div>
-                    <h2 class="text-3xl font-black text-gray-900 tracking-tight">Calendario Oficial</h2>
-                    <p class="mt-2 text-gray-600 font-medium">Sigue de cerca todos los encuentros de las ligas activas.</p>
+                    <h2 class="text-3xl font-black text-gray-900 tracking-tight">Horarios Oficiales</h2>
+                    <p class="mt-2 text-gray-600 font-medium">Sigue de cerca todos los encuentros de las ligas activas y asegura tu lugar.</p>
                 </div>
                 
                 <div class="mt-6 md:mt-0 flex bg-gray-200 p-1 rounded-xl shadow-inner">
@@ -27,7 +27,7 @@
 
             <div v-if="cargando" class="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
                 <svg class="animate-spin h-10 w-10 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p class="text-gray-500 font-medium">Cargando calendario...</p>
+                <p class="text-gray-500 font-medium">Cargando horarios...</p>
             </div>
 
             <div v-else>
@@ -64,7 +64,7 @@
                                 </div>
                             </div>
 
-                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-600 font-medium mb-3">
+                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-600 font-medium mb-4">
                                 <div class="flex items-center mb-2 sm:mb-0">
                                     <svg class="w-4 h-4 mr-1.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
                                     Sede: <strong class="ml-1 text-gray-800">{{ p.nombre_cancha }}</strong>
@@ -75,11 +75,19 @@
                                 </div>
                             </div>
 
-                            <button @click="abrirRostersPartido(p)" 
-                                    class="w-full py-2.5 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-xl hover:bg-indigo-100 transition-colors border border-indigo-200 flex items-center justify-center mt-auto">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                Ver Rosters del Encuentro
-                            </button>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
+                                <button @click="abrirRostersPartido(p)" 
+                                        class="w-full py-2.5 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-xl hover:bg-indigo-100 transition-colors border border-indigo-200 flex items-center justify-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    Ver Rosters
+                                </button>
+                                
+                                <button @click="manejarCompraBoleto(p)" 
+                                        class="w-full py-2.5 bg-amber-500 text-white font-black text-sm rounded-xl hover:bg-amber-600 transition-colors shadow-sm flex items-center justify-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>
+                                    Comprar Boleto
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -124,7 +132,7 @@
             </div>
         </main>
 
-        <div v-if="modalAbierto && fichaActual" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div v-if="modalAbierto && fichaActual" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
                 <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <div>
@@ -219,7 +227,7 @@
             </div>
         </div>
 
-        <div v-if="modalRosterAbierto && partidoRosterActual" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div v-if="modalRosterAbierto && partidoRosterActual" class="fixed inset-0 z-120 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
                 
                 <div class="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
@@ -239,7 +247,6 @@
                     </div>
 
                     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 text-center">
                                 <h5 class="font-black text-gray-800 uppercase tracking-widest text-sm">{{ partidoRosterActual.local_nombre }}</h5>
@@ -295,25 +302,40 @@
 
     </div>
 </template>
+
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import NavbarEspectador from '../../components/NavbarEspectador.vue'
 
-// Importamos los servicios de partidos
 import { obtenerPartidosPublicosService, obtenerFichaTecnicaPublicaService } from '../../services/partidosService'
-// IMPORTAMOS EL SERVICIO DE ROSTERS PÚBLICOS
 import { obtenerRosterPublicoService } from '../../services/inscripcionesService'
 
+const router = useRouter()
 const tabActiva = ref('proximos')
 const cargando = ref(true)
 const todosLosPartidos = ref([])
 
-// Variables del Modal de Ficha Técnica (Resultados)
+// LÓGICA DE AUTENTICACIÓN
+const obtenerUsuario = () => {
+    try {
+        return JSON.parse(localStorage.getItem('usuario'))
+    } catch {
+        return null
+    }
+}
+const user = ref(obtenerUsuario())
+
+const actualizarUsuario = () => {
+    user.value = obtenerUsuario()
+}
+
+// Variables Modales Ficha Técnica
 const modalAbierto = ref(false)
 const cargandoFicha = ref(false)
 const fichaActual = ref(null)
 
-// Variables del Modal de Previa (Rosters)
+// Variables Modales Rosters
 const modalRosterAbierto = ref(false)
 const cargandoRosters = ref(false)
 const partidoRosterActual = ref(null)
@@ -321,6 +343,9 @@ const rosterLocal = ref([])
 const rosterVisitante = ref([])
 
 onMounted(async () => {
+    window.addEventListener('storage', actualizarUsuario)
+    window.addEventListener('auth-change', actualizarUsuario)
+    
     try {
         cargando.value = true;
         const data = await obtenerPartidosPublicosService();
@@ -332,14 +357,30 @@ onMounted(async () => {
     }
 })
 
-const partidosProximos = computed(() => {
-    return todosLosPartidos.value.filter(p => p.estado !== 'Finalizado')
+onUnmounted(() => {
+    window.removeEventListener('storage', actualizarUsuario)
+    window.removeEventListener('auth-change', actualizarUsuario)
 })
 
-const partidosFinalizados = computed(() => {
-    return todosLosPartidos.value.filter(p => p.estado === 'Finalizado')
-})
+const partidosProximos = computed(() => todosLosPartidos.value.filter(p => p.estado !== 'Finalizado'))
+const partidosFinalizados = computed(() => todosLosPartidos.value.filter(p => p.estado === 'Finalizado'))
 
+// 🔴 LÓGICA DE COMPRA DE BOLETOS
+const manejarCompraBoleto = (partido) => {
+    if (!user.value) {
+        router.push('/login')
+        return;
+    }
+
+    if (user.value.rol !== 'espectador') {
+        alert("Las compras de boletos son exclusivas para el rol de espectador. Tu rol actual ya cuenta con acceso autorizado a la cancha.");
+        return;
+    }
+
+    router.push(`/comprar-boleto/${partido.id_partido}`)
+}
+
+// Funciones Modales
 const abrirFichaTecnica = async (partido) => {
     modalAbierto.value = true;
     cargandoFicha.value = true;
@@ -376,7 +417,6 @@ const abrirRostersPartido = async (partido) => {
     rosterVisitante.value = [];
 
     try {
-        // 🔴 DEFENSA: Nos aseguramos de capturar el ID sin importar cómo se llame la columna
         const idLocal = partido.id_equipo_local || partido.id_local;
         const idVisitante = partido.id_equipo_visitante || partido.id_visitante;
 

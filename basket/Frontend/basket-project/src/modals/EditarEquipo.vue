@@ -1,5 +1,4 @@
-<!-- ruta: /modals/EditarEquipo.vue -->
-    <template>
+<template>
     <div v-if="show" class="fixed inset-0 z-50 overflow-y-auto">
         <div class="flex items-center justify-center min-h-screen px-4">
         <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="close"></div>
@@ -63,13 +62,7 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
                         <p class="text-xs text-gray-500 mt-1">La dirección debe ser única en el sistema.</p>
                     </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Capacidad (Espectadores)</label>
-                        <input type="number" v-model="form.capacidad_cancha" min="0" placeholder="Ej: 500"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
-                </div>
             </div>
 
             <div class="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-100">
@@ -86,54 +79,54 @@
         </div>
         </div>
     </div>
-    </template>
+</template>
 
-    <script setup>
-    import { ref, watch } from 'vue'
+<script setup>
+import { ref, watch } from 'vue'
 
-    const props = defineProps({
+const props = defineProps({
     show: Boolean,
     equipo: {
         type: Object,
         default: null
     }
-    })
+})
 
-    const emit = defineEmits(['close', 'save'])
+const emit = defineEmits(['close', 'save'])
 
-    const form = ref({
-        nombre_oficial: '',
-        siglas: '',
-        id_clasificacion: '',
-        id_cancha: null,
-        nombre_cancha: '',
-        direccion_cancha: '',
-        capacidad_cancha: ''
-    })
+const form = ref({
+    nombre_oficial: '',
+    siglas: '',
+    id_clasificacion: '',
+    id_cancha: null,
+    nombre_cancha: '',
+    direccion_cancha: ''
+})
 
-    watch(() => props.show, (isVisible) => {
-        if (isVisible && props.equipo) {
-            form.value = {
-                nombre_oficial: props.equipo.nombre_oficial || '',
-                siglas: props.equipo.siglas || '',
-                id_clasificacion: props.equipo.id_clasificacion || '',
-                id_cancha: props.equipo.id_cancha || null,
-                nombre_cancha: props.equipo.nombre_cancha || '',
-                direccion_cancha: props.equipo.direccion_cancha || '',
-                capacidad_cancha: props.equipo.capacidad_cancha || ''
-            }
+watch(() => props.show, (isVisible) => {
+    if (isVisible && props.equipo) {
+        form.value = {
+            nombre_oficial: props.equipo.nombre_oficial || '',
+            siglas: props.equipo.siglas || '',
+            id_clasificacion: props.equipo.id_clasificacion || '',
+            id_cancha: props.equipo.id_cancha || null,
+            nombre_cancha: props.equipo.nombre_cancha || '',
+            direccion_cancha: props.equipo.direccion_cancha || ''
         }
-    })
+    }
+})
 
-    const handleSubmit = () => {
-    const dataToSave = { ...form.value }
-    
-    if(dataToSave.capacidad_cancha) dataToSave.capacidad_cancha = parseInt(dataToSave.capacidad_cancha, 10);
+const handleSubmit = () => {
+    // Forzamos que capacidad_cancha se vaya como null para respetar la nueva normalización
+    const dataToSave = { 
+        ...form.value,
+        capacidad_cancha: null 
+    }
     
     emit('save', dataToSave)
-    }
+}
 
-    const close = () => {
+const close = () => {
     emit('close')
-    }
-    </script>
+}
+</script>

@@ -113,7 +113,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { obtenerCanalesService } from '../services/canalService' 
 import NavbarEspectador from '../components/NavbarEspectador.vue'
-
+import MisBoletos from './Espectadores/MisBoletos.vue'
+import ComprarBoletos from './Espectadores/ComprarBoletos.vue'
 const filterCategory = ref(null)
 const canales = ref([])
 const cargando = ref(true)

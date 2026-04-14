@@ -26,7 +26,7 @@
                     <InscribirTorneos v-if="activeTab === 'inscribir-torneos'" />
                     <CalendarioPartidos v-if="activeTab === 'calendario-partidos'" />
                     <HistorialPartidos v-if="activeTab === 'torneos-jugados'" />
-                    
+                    <ActualizarZona v-if="activeTab === 'actualizar-zona'" :equipo="equipoActual" />
                     <Perfil v-if="activeTab === 'perfil'" @perfil-actualizado="actualizarNombreNavbar" />
 
                 </div>
@@ -50,7 +50,7 @@ import { obtenerEquipoDeEntrenadorService, actualizarEquipoService } from '../se
 import Sidebar from '../components/Sidebar.vue'
 import NavbarEntrenador from '../components/NavbarEntrenador.vue' 
 import EditarEquipo from '../modals/EditarEquipo.vue'
-
+import ActualizarZona from './Entrenador/ActualizarZona.vue'
 import MiEquipo from './Entrenador/MiEquipo.vue' 
 import Jugadores from './Entrenador/Jugadores.vue' 
 import MisTorneos from './Entrenador/MisTorneos.vue' 

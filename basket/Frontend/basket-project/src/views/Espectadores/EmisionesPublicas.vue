@@ -36,7 +36,7 @@
                                 <p v-if="canal.tipo_canal === 'satelital'" class="text-xs font-bold opacity-80 flex items-center">
                                     <span class="px-1.5 py-0.5 bg-white/20 rounded mr-1">CH</span> {{ canal.numero_canal }}
                                 </p>
-                                <p v-else class="text-xs font-bold opacity-80 flex items-center truncate max-w-[200px]">
+                                <p v-else class="text-xs font-bold opacity-80 flex items-center truncate max-w-50">
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
                                     {{ canal.url_sitio }}
                                 </p>
@@ -51,7 +51,7 @@
                 </div>
 
                 <div class="lg:w-2/3">
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 min-h-[500px]">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 min-h-125">
                         
                         <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-4">
                             <h3 class="text-xl font-black text-indigo-900 flex items-center">

@@ -1,6 +1,6 @@
 const { db } = require('../Config/db');
 const schema = require('../models/schema');
-const { eq, and, ne, notInArray, desc, sql, count, asc } = require('drizzle-orm');
+const { eq, and, ne, notInArray, desc, sql, count, asc, inArray } = require('drizzle-orm');
 const { alias } = require('drizzle-orm/pg-core');
 const crearTorneo = async (datosTorneo) => {
     const { nombre_torneo, descripcion, categoria, fecha_inicio, fecha_fin, numero_equipos, id_clasificacion, reglamento } = datosTorneo;
@@ -202,7 +202,7 @@ const obtenerTodosActivos = async () => {
     .from(schema.torneos)
     .leftJoin(schema.clasificacionEquipo, eq(schema.torneos.idClasificacion, schema.clasificacionEquipo.idClasificacion))
     .where(
-        notInArray(schema.torneos.estado, ['Cancelado', 'Archivado'])
+        notInArray(schema.torneos.estado, ['Cancelado', 'Archivado', 'Finalizado'])
     )
     .orderBy(desc(schema.torneos.fechaInicio));
 
@@ -292,7 +292,8 @@ const obtenerEquiposInscritos = async (id_torneo) => {
         nombre_oficial: schema.equipos.nombreOficial,
         siglas: schema.equipos.siglas,
         id_cancha: schema.canchas.idCancha,
-        nombre_cancha: schema.canchas.nombreCancha
+        nombre_cancha: schema.canchas.nombreCancha,
+        estado_inscripcion: schema.inscripciones.estadoInscripcion 
     })
     .from(schema.inscripciones)
     .innerJoin(schema.equipos, eq(schema.inscripciones.idEquipo, schema.equipos.idEquipo))
@@ -300,7 +301,7 @@ const obtenerEquiposInscritos = async (id_torneo) => {
     .where(
         and(
             eq(schema.inscripciones.idTorneo, id_torneo),
-            eq(schema.inscripciones.estadoInscripcion, 'Aprobada')
+            inArray(schema.inscripciones.estadoInscripcion, ['Aprobada', 'Eliminado']) 
         )
     );
 

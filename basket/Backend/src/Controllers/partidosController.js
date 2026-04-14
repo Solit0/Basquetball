@@ -70,5 +70,14 @@ const getFichaTecnicaPublica = async (req, res, next) => {
         next(error);
     }
 };
+const getNotificacionesEntrenador = async (req, res) => {
+    try {
+        const { id_entrenador } = req.params;
+        const notificaciones = await partidosService.obtenerNotificacionesEntrenador(id_entrenador);
+        res.status(200).json(notificaciones);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 module.exports = { crearBulk, obtenerPorTorneo, registrarResultado, obtenerResumen, 
-    obtenerHistorialEquipo, guardarEvaluacion, getPartidosPublicos, getFichaTecnicaPublica };
+    obtenerHistorialEquipo, guardarEvaluacion, getPartidosPublicos, getFichaTecnicaPublica, getNotificacionesEntrenador };

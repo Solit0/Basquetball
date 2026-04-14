@@ -365,6 +365,7 @@ const resolucionesDisciplinarias = pgTable("resoluciones_disciplinarias", {
         name: "resoluciones_disciplinarias_id_sancion_fkey"
     }).onDelete("cascade")
 ]);
+// 1. Zonas de la cancha (Ej: General, VIP, Gradas Sur)
 const zonasCancha = pgTable("zonas_cancha", {
     idZona: uuid("id_zona").defaultRandom().primaryKey().notNull(),
     idCancha: uuid("id_cancha").notNull().references(() => canchas.idCancha),
@@ -372,6 +373,7 @@ const zonasCancha = pgTable("zonas_cancha", {
     capacidad: integer("capacidad").notNull(),
     activo: boolean("activo").default(true),
 });
+
 const boletosPartido = pgTable("boletos_partido", {
     idBoleto: uuid("id_boleto").defaultRandom().primaryKey().notNull(),
     idPartido: uuid("id_partido").notNull().references(() => partidos.idPartido),
@@ -379,15 +381,17 @@ const boletosPartido = pgTable("boletos_partido", {
     precio: numeric("precio", { precision: 10, scale: 2 }).notNull(), 
     disponibles: integer("disponibles").notNull(), 
 });
+
 const transaccionesTicketing = pgTable("transacciones_ticketing", {
     idTransaccion: uuid("id_transaccion").defaultRandom().primaryKey().notNull(),
     idUsuario: uuid("id_usuario").notNull().references(() => usuarios.idUsuario), 
     idBoleto: uuid("id_boleto").notNull().references(() => boletosPartido.idBoleto),
     cantidad: integer("cantidad").notNull().default(1),
     montoTotal: numeric("monto_total", { precision: 10, scale: 2 }).notNull(),
-    metodoPago: varchar("metodo_pago", { length: 50 }).notNull(), 
-    estadoPago: varchar("estado_pago", { length: 20 }).default('Pendiente'), 
-    fechaCompra: timestamp("fecha_compra").defaultNow(),
+    metodoPago: varchar("metodo_pago", { length: 50 }), 
+    estadoPago: varchar("estado_pago", { length: 20 }).default('Reservado'), 
+    fechaCompra: timestamp("fecha_compra", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+    expiraEn: timestamp("expira_en", { mode: 'string' }),
     referenciaPasarela: varchar("referencia_pasarela", { length: 255 }), 
 });
 module.exports = {

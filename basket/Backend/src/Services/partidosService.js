@@ -221,6 +221,39 @@ const obtenerResumenPartido = async (id_partido) => {
         informe: resInforme.length > 0 ? resInforme[0].contenido : 'No se redactó informe.'
     };
 };
+const obtenerNotificacionesEntrenador = async (idEntrenador) => {
+    try {
+        const query = sql`
+            SELECT 
+                p.id_partido,
+                p.fecha,
+                p.hora,
+                el.nombre_oficial AS local_nombre,
+                ev.nombre_oficial AS visitante_nombre,
+                c.nombre_cancha AS sede
+            FROM partidos p
+            INNER JOIN equipos el ON p.id_equipo_local = el.id_equipo
+            INNER JOIN equipos ev ON p.id_equipo_visitante = ev.id_equipo
+            INNER JOIN canchas c ON p.id_cancha = c.id_cancha
+            WHERE (el.id_entrenador = ${idEntrenador}::uuid OR ev.id_entrenador = ${idEntrenador}::uuid)
+              AND p.estado = 'Programado'
+              AND p.fecha >= CURRENT_DATE
+            ORDER BY p.fecha ASC, p.hora ASC
+        `;
+
+        const resultados = await db.execute(query);
+        const partidos = resultados.rows ? resultados.rows : resultados;
+
+        if (partidos.length === 0) return [];
+        const fechaProxima = partidos[0].fecha;
+        const partidosDelDia = partidos.filter(p => p.fecha === fechaProxima);
+
+        return partidosDelDia;
+    } catch (error) {
+        console.error("Error al obtener notificaciones:", error);
+        throw new Error("No se pudieron cargar las notificaciones.");
+    }
+};
 const finalizarPartido = async (id_partido, datosResultado) => {
     const { 
         marcador_local, marcador_visitante, id_arbitro, 
@@ -565,6 +598,7 @@ const obtenerFichaTecnicaPublica = async (id_partido) => {
 module.exports = { 
     crearMultiples, 
     obtenerPorTorneo, 
+    obtenerNotificacionesEntrenador,
     finalizarPartido, 
     obtenerResumenPartido, 
     obtenerHistorialEquipo, 

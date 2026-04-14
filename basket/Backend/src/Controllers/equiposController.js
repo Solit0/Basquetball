@@ -65,6 +65,11 @@ const deshabilitarEquipo = async (req, res, next) => {
             equipo: equipoDeshabilitado
         });
     } catch (error) {
+        if (error.message === 'No puedes deshabilitar el equipo porque actualmente está compitiendo en un torneo en curso.') {
+            return res.status(400).json({ error: error.message });
+        }
+        
+        // Si es otro error (como caída de BD), lo pasamos al middleware global
         next(error);
     }
 };
@@ -128,8 +133,12 @@ const abandonarEquipo = async (req, res, next) => {
     try {
         const { id } = req.params;
         await equiposService.abandonarEquipo(id);
+        
         res.status(200).json({ mensaje: 'Has abandonado el equipo exitosamente' });
     } catch (error) {
+        if (error.message === 'No puedes abandonar el equipo porque actualmente está compitiendo en un torneo en curso.') {
+            return res.status(400).json({ error: error.message });
+        }
         next(error);
     }
 };

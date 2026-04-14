@@ -16,7 +16,7 @@
                     <router-link to="/transmisiones" 
                         class="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                         active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
-                        Canales Oficiales de Transmisión
+                        Canales Oficiales
                     </router-link>
                     <router-link to="/emisiones" 
                         class="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -38,20 +38,39 @@
                     <router-link to="/calendario" 
                         class="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                         active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
-                        Calendario de Partidos
+                        Calendario
                     </router-link>
                     
+                    <router-link v-if="isLoggedIn" to="/mis-boletos" 
+                        class="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
+                        Mis Boletos
+                    </router-link>
                 </div>
 
                 <div v-if="!isLoggedIn" class="hidden md:flex items-center">
                     <button @click="$router.push('/login')" 
                             class="px-5 py-2.5 text-sm font-black text-indigo-600 border-2 border-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                        Acceso Staff
+                        Iniciar Sesión
                     </button>
                 </div>
 
-                <div v-if="!isLoggedIn" class="hidden md:flex items-center">
+                <div v-else class="hidden md:flex items-center space-x-4">
+                    <div class="h-8 border-l border-gray-300"></div>
+
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold mr-2 border border-indigo-200">
+                            {{ user?.nombre?.charAt(0).toUpperCase() || 'U' }}
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-gray-800 leading-tight">{{ user?.nombre }}</span>
+                            <button @click="cerrarSesion" class="text-[10px] text-red-500 hover:text-red-700 font-black text-left uppercase tracking-wider">Cerrar Sesión</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:hidden flex items-center">
                     <button @click="isMobileMenuOpen = !isMobileMenuOpen" class="text-gray-600 hover:text-indigo-600 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path v-if="!isMobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -64,6 +83,22 @@
 
         <div v-if="isMobileMenuOpen" class="md:hidden bg-white border-t border-gray-100 shadow-2xl absolute w-full animate-fade-in-down">
             <div class="px-4 pt-4 pb-6 space-y-2">
+                
+                <div v-if="isLoggedIn" class="bg-indigo-50 rounded-xl p-4 mb-4 flex items-center justify-between border border-indigo-100">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                            {{ user?.nombre?.charAt(0).toUpperCase() || 'U' }}
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800">{{ user?.nombre }}</p>
+                            <p class="text-xs text-indigo-600 font-medium">Espectador</p>
+                        </div>
+                    </div>
+                    <button @click="cerrarSesion" class="text-red-500 p-2 hover:bg-red-50 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
+
                 <router-link to="/transmisiones" @click="isMobileMenuOpen = false" 
                     class="block px-4 py-3 rounded-xl text-base font-bold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50"
                     active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
@@ -100,11 +135,20 @@
                         Calendario de Partidos
                     </div>
                 </router-link>
-                
+
+                <router-link v-if="isLoggedIn" to="/mis-boletos" @click="isMobileMenuOpen = false" 
+                    class="block px-4 py-3 rounded-xl text-base font-bold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50"
+                    active-class="text-indigo-700 bg-indigo-50 ring-1 ring-indigo-100">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>
+                        Mis Boletos
+                    </div>
+                </router-link>
+
                 <div v-if="!isLoggedIn" class="pt-6 mt-2 border-t border-gray-200">
                     <button @click="$router.push('/login'); isMobileMenuOpen = false" 
                             class="w-full flex items-center justify-center px-4 py-3 text-base font-black text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md">
-                        Acceso Staff / Equipos
+                        Iniciar Sesión
                     </button>
                 </div>
             </div>
@@ -113,13 +157,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const isMobileMenuOpen = ref(false)
 
 const getUser = () => {
   try {
-    return JSON.parse(localStorage.getItem('user'))
+    return JSON.parse(localStorage.getItem('usuario'))
   } catch {
     return null
   }
@@ -129,8 +175,28 @@ const user = ref(getUser())
 
 const isLoggedIn = computed(() => !!user.value)
 
-window.addEventListener('storage', () => {
-  user.value = getUser()
+// Función para actualizar el estado reactivo manualmente
+const actualizarEstadoAuth = () => {
+    user.value = getUser()
+}
+
+const cerrarSesion = () => {
+    localStorage.removeItem('usuario')
+    localStorage.removeItem('usuario_id')
+    localStorage.removeItem('token') // Si usas token JWT, bórralo también
+    actualizarEstadoAuth()
+    isMobileMenuOpen.value = false
+    router.push('/') // Mandar al Home al salir
+}
+
+onMounted(() => {
+    window.addEventListener('storage', actualizarEstadoAuth)
+    window.addEventListener('auth-change', actualizarEstadoAuth)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('storage', actualizarEstadoAuth)
+    window.removeEventListener('auth-change', actualizarEstadoAuth)
 })
 </script>
 
